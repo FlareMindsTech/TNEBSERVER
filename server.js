@@ -14,9 +14,15 @@ mongoose.connect(process.env.MONGO_URI)
 .then(() => console.log('Connected to MongoDB...'))
 .catch(err => console.error('Could not connect to MongoDB... '+err.message));
   
+import { protect } from './middleware/authMiddleware.js';
+
 app.get("/",(req,res)=>{
     res.send("Hello world")
 })
+
+app.get("/protected", protect, (req, res) => {
+    res.send(`Hello ${req.user.id || 'User'}, you are authorized!`);
+});
 
 const PORT = process.env.PORT || 7800;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
