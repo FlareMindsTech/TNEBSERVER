@@ -1,5 +1,5 @@
 import Carousel from '../Models/Carousel.js';
-import { cloudinary } from '../config/Cloudinary.js';
+import { cloudinary } from '../Config/Cloudinary.js';
 
 //create
 export const createCarousel = async (req, res) => {

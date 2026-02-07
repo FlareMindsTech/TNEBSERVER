@@ -14,8 +14,8 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: process.env.CLOUDINARY_FOLDER, 
-    resource_type: 'raw', 
+    folder: process.env.CLOUDINARY_FOLDER,
+    resource_type: 'auto',
     public_id: (req, file) => {
       const name = file.originalname.split('.')[0];
       const extension = file.originalname.split('.').pop();

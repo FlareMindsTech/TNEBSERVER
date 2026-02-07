@@ -5,6 +5,11 @@ import cors from 'cors';
 import eventRoutes from './Routes/EventRoutes.js'; // Note the .js extension is required!
 import carouselRoutes from './Routes/CarouselRoutes.js';
 import userRoutes from './Routes/UserRoutes.js';
+import galleryRoutes from './Routes/GalleryRoutes.js';
+import minthiranRoutes from './Routes/MinthiranRoutes.js';
+import visitorRoutes from './Routes/VisitorRoutes.js';
+
+
 
 const app = express();
 
@@ -27,6 +32,11 @@ connectDB();
 app.use('/api/events', eventRoutes);
 app.use('/api/carousel', carouselRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/gallery', galleryRoutes);
+app.use('/api/minthiran', minthiranRoutes);
+app.use('/api/visitors', visitorRoutes);
+
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

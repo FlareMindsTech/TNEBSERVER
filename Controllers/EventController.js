@@ -1,5 +1,5 @@
 import Event from '../Models/Event.js';
-import { cloudinary } from '../config/Cloudinary.js';
+import { cloudinary } from '../Config/Cloudinary.js';
 export const createEvent = async (req, res) => {
   try {
     const { title, description, date } = req.body;
