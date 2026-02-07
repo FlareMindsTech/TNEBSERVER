@@ -1,3 +1,10 @@
 node_modules
 .env
 package-lock.json
+
+scripts/
+fixIndex.js
+seedLM.js
+verify_auth.js
+
+
