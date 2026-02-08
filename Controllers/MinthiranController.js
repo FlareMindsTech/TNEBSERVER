@@ -1,5 +1,5 @@
 import Minthiran from "../Models/Minthiran.js";
-import { cloudinary } from "../Config/Cloudinary.js";
+import { cloudinary } from "../config/Cloudinary.js";
 
 export const createMinthiran = async (req, res) => {
     try {

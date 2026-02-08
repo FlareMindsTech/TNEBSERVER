@@ -1,5 +1,5 @@
 import Gallery from "../Models/Gallery.js";
-import { cloudinary } from "../Config/Cloudinary.js";
+import { cloudinary } from "../config/Cloudinary.js";
 
 export const createGallery = async (req, res) => {
     try {
