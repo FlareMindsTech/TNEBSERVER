@@ -36,7 +36,9 @@ app.use('/api/gallery', galleryRoutes);
 app.use('/api/minthiran', minthiranRoutes);
 app.use('/api/visitors', visitorRoutes);
 
-
+app.get("/", (req, res) => {
+  res.send("welcome"); 
+});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
