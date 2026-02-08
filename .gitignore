@@ -19,5 +19,5 @@ yarn.lock
 # OS files
 .DS_Store
 package-lock.json
-scripts/
-verify_auth.js
+
+
