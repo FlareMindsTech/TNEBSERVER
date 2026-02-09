@@ -41,7 +41,7 @@ export const createGallery = async (req, res) => {
         console.error("Create Gallery Error:", error);
         res.status(500).json({ message: error.message });
     }
-};
+}; 
 
 export const getAllGalleries = async (req, res) => {
     try {

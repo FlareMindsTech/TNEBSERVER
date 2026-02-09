@@ -17,16 +17,16 @@ router.get("/:slug", getGalleryBySlug);
 
 router.post(
     "/",
-    protect,
-    authorize("user"),
+    // protect,
+    // authorize("user"),
     upload.array("images", 10),
     createGallery
 );
 
 router.put(
     "/:id",
-    protect,
-    authorize("user"),
+    // protect,
+    // authorize("user"),
     upload.array("images", 10),
     updateGallery
 );
