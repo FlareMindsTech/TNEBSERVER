@@ -31,6 +31,6 @@ router.put(
     updateGallery
 );
 
-router.delete("/:id", protect, authorize("user"), deleteGallery);
+router.delete("/:id", deleteGallery);
 
 export default router;
