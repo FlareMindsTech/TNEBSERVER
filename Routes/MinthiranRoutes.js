@@ -22,6 +22,6 @@ router.post(
     createMinthiran
 );
 
-router.delete("/:id", protect, authorize("user"), deleteMinthiran);
+router.delete("/:id", deleteMinthiran);
 
 export default router;
