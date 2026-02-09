@@ -2,35 +2,32 @@ import express from "express";
 import {
     createGallery,
     getAllGalleries,
-    getGalleryBySlug,
+    getGalleryById,
     updateGallery,
     deleteGallery,
+    deleteGalleryImage
 } from "../Controllers/GalleryController.js";
+
 import { upload } from "../Config/Cloudinary.js";
-import { protect } from "../Middleware/authMiddleware.js";
-import { authorize } from "../Middleware/roleMiddleware.js";
 
 const router = express.Router();
 
+/* GET ALL */
 router.get("/", getAllGalleries);
-router.get("/:slug", getGalleryBySlug);
 
-router.post(
-    "/",
-    // protect,
-    // authorize("user"),
-    upload.array("images", 10),
-    createGallery
-);
+/* GET BY ID */
+router.get("/:id", getGalleryById);
 
-router.put(
-    "/:id",
-    // protect,
-    // authorize("user"),
-    upload.array("images", 10),
-    updateGallery
-);
+/* CREATE */
+router.post("/", upload.array("images", 10), createGallery);
 
+/* UPDATE */
+router.put("/:id", upload.array("images", 10), updateGallery);
+
+/* DELETE SINGLE IMAGE */
+router.delete("/:galleryId/image/:imageId", deleteGalleryImage);
+
+/* DELETE GALLERY */
 router.delete("/:id", deleteGallery);
 
 export default router;
