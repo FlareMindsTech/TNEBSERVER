@@ -4,8 +4,7 @@ const imageSchema = new mongoose.Schema(
     {
         url: {
             type: String,
-            required: true,
-            trim: true
+            required: true
         },
         public_id: {
             type: String,
@@ -13,15 +12,13 @@ const imageSchema = new mongoose.Schema(
         },
         caption: {
             type: String,
-            trim: true,
             default: null
         },
         format: {
-            type: String,
-            trim: true
+            type: String
         }
     },
-    { _id: false }
+    { _id: true }
 );
 
 const gallerySchema = new mongoose.Schema(
@@ -40,13 +37,6 @@ const gallerySchema = new mongoose.Schema(
             type: Date,
             default: Date.now
         },
-        slug: {
-            type: String,
-            required: true,
-            unique: true,
-            lowercase: true,
-            trim: true
-        },
         images: {
             type: [imageSchema],
             default: []
@@ -56,7 +46,5 @@ const gallerySchema = new mongoose.Schema(
         timestamps: true
     }
 );
-
-gallerySchema.index({ slug: 1 });
 
 export default mongoose.model("Gallery", gallerySchema);
