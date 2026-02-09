@@ -3,30 +3,39 @@ import { cloudinary } from "../config/Cloudinary.js";
 
 export const createGallery = async (req, res) => {
     try {
-        const { title, description, slug, caption } = req.body;
+        const { title, description, caption } = req.body;
 
-        if (!title || !description || !slug) {
-            return res.status(400).json({ message: "Title, description, and slug are required" });
+        if (!title || !description) {
+            return res.status(400).json({
+                message: "Title and description are required"
+            });
         }
 
-        const existingGallery = await Gallery.findOne({ slug });
-        if (existingGallery) {
-            return res.status(400).json({ message: "A gallery with this slug already exists" });
+        // Generate base slug from title
+        let slug = generateSlug(title);
+
+        // Ensure slug uniqueness
+        let slugExists = await Gallery.findOne({ slug });
+        let counter = 1;
+
+        while (slugExists) {
+            slug = `${generateSlug(title)}-${counter}`;
+            slugExists = await Gallery.findOne({ slug });
+            counter++;
         }
 
         const images = [];
 
-        if (req.files) {
+        if (req.files?.length) {
             req.files.forEach((file) => {
                 images.push({
                     url: file.path,
                     public_id: file.filename,
-                    caption: caption || title, 
+                    caption: caption || title,
                     format: file.mimetype.split("/")[1],
                 });
             });
         }
-
 
         const gallery = new Gallery({
             title,
@@ -37,11 +46,12 @@ export const createGallery = async (req, res) => {
 
         const savedGallery = await gallery.save();
         res.status(201).json(savedGallery);
+
     } catch (error) {
         console.error("Create Gallery Error:", error);
         res.status(500).json({ message: error.message });
     }
-}; 
+};
 
 export const getAllGalleries = async (req, res) => {
     try {
@@ -66,18 +76,38 @@ export const getGalleryBySlug = async (req, res) => {
 
 export const updateGallery = async (req, res) => {
     try {
-        const { title, description, slug } = req.body;
+        const { title, description } = req.body;
         const gallery = await Gallery.findById(req.params.id);
 
         if (!gallery) {
             return res.status(404).json({ message: "Gallery not found" });
         }
 
-        if (title) gallery.title = title;
-        if (description) gallery.description = description;
-        if (slug) gallery.slug = slug;
+        if (title && title !== gallery.title) {
+            gallery.title = title;
 
-        if (req.files) {
+            let newSlug = generateSlug(title);
+            let slugExists = await Gallery.findOne({
+                slug: newSlug,
+                _id: { $ne: gallery._id }
+            });
+
+            let counter = 1;
+            while (slugExists) {
+                newSlug = `${generateSlug(title)}-${counter}`;
+                slugExists = await Gallery.findOne({
+                    slug: newSlug,
+                    _id: { $ne: gallery._id }
+                });
+                counter++;
+            }
+
+            gallery.slug = newSlug;
+        }
+
+        if (description) gallery.description = description;
+
+        if (req.files?.length) {
             req.files.forEach((file) => {
                 gallery.images.push({
                     url: file.path,
@@ -88,9 +118,9 @@ export const updateGallery = async (req, res) => {
             });
         }
 
-
         const updatedGallery = await gallery.save();
         res.status(200).json(updatedGallery);
+
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
