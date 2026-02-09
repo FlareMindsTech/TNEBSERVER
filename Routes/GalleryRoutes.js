@@ -17,20 +17,20 @@ router.get("/:slug", getGalleryBySlug);
 
 router.post(
     "/",
-    protect,
-    authorize("user"),
+    // protect,
+    // authorize("user"),
     upload.array("images", 10),
     createGallery
 );
 
 router.put(
     "/:id",
-    protect,
-    authorize("user"),
+    // protect,
+    // authorize("user"),
     upload.array("images", 10),
     updateGallery
 );
 
-router.delete("/:id", protect, authorize("user"), deleteGallery);
+router.delete("/:id", deleteGallery);
 
 export default router;

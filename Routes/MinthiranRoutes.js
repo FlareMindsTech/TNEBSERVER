@@ -16,8 +16,8 @@ router.get("/year/:year", getMinthiransByYear);
 
 router.post(
     "/",
-    protect,
-    authorize("user"),
+    // protect,
+    // authorize("user"),
     upload.single("pdf"),
     createMinthiran
 );
