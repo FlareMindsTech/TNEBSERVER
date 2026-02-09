@@ -6,11 +6,13 @@ import { authorize } from '../Middleware/roleMiddleware.js';
 
 const router = express.Router();
 
+
+router.get('/', eventCtrl.getEvents);
+
 // Apply protect to all routes
 router.use(protect);
 
 router.post('/', authorize('owner', 'admin'), upload.single('pdf'), eventCtrl.createEvent);
-router.get('/', eventCtrl.getEvents);
 router.put('/:id', authorize('owner', 'admin'), upload.single('pdf'), eventCtrl.updateEvent);
 router.delete('/:id', authorize('owner', 'admin'), eventCtrl.deleteEvent);
 

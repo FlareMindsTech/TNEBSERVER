@@ -6,11 +6,13 @@ import { authorize } from '../Middleware/roleMiddleware.js';
 
 const router = express.Router();
 
+
+router.get('/', carouselCtrl.getCarousels);
+
 // Apply protect to all routes
 router.use(protect);
 
 router.post('/', authorize('owner', 'admin'), upload.single('image'), carouselCtrl.createCarousel);
-router.get('/', carouselCtrl.getCarousels);
 router.put('/:id', authorize('owner', 'admin'), upload.single('image'), carouselCtrl.updateCarousel);
 router.delete('/:id', authorize('owner', 'admin'), carouselCtrl.deleteCarousel);
 
