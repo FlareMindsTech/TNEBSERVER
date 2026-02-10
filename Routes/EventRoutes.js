@@ -1,6 +1,6 @@
 import express from 'express';
 import * as eventCtrl from '../Controllers/EventController.js';
-import { upload } from '../Config/Cloudinary.js';
+import { upload } from '../config/Cloudinary.js';
 import { protect } from '../Middleware/authMiddleware.js';
 import { authorize } from '../Middleware/roleMiddleware.js';
 
