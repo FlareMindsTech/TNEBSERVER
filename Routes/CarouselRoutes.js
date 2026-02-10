@@ -7,7 +7,7 @@ import { authorize } from '../Middleware/roleMiddleware.js';
 const router = express.Router();
 
 // Apply protect to all routes
-router.use(protect);
+
 
 router.post('/', protect,authorize('owner', 'admin'), upload.single('image'), carouselCtrl.createCarousel);
 router.get('/', carouselCtrl.getCarousels);
