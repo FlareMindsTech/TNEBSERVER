@@ -9,9 +9,9 @@ const router = express.Router();
 // Apply protect to all routes
 router.use(protect);
 
-router.post('/', authorize('owner', 'admin'), upload.single('image'), carouselCtrl.createCarousel);
+router.post('/', protect,authorize('owner', 'admin'), upload.single('image'), carouselCtrl.createCarousel);
 router.get('/', carouselCtrl.getCarousels);
-router.put('/:id', authorize('owner', 'admin'), upload.single('image'), carouselCtrl.updateCarousel);
-router.delete('/:id', authorize('owner', 'admin'), carouselCtrl.deleteCarousel);
+router.put('/:id',protect, authorize('owner', 'admin'), upload.single('image'), carouselCtrl.updateCarousel);
+router.delete('/:id', protect,authorize('owner', 'admin'), carouselCtrl.deleteCarousel);
 
 export default router;
