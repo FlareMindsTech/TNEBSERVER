@@ -108,24 +108,37 @@ export const deleteGalleryImage = async (req, res) => {
 
         const { galleryId, imageId } = req.params;
 
+        console.log("Delete Image Request - Gallery ID:", galleryId, "Image ID:", imageId);
+
         const gallery = await Gallery.findById(galleryId);
 
         if (!gallery)
             return res.status(404).json({ message: "Gallery not found" });
 
-        const image = gallery.images.id(imageId);
+        // Find the image in the array
+        const imageIndex = gallery.images.findIndex(img => img._id.toString() === imageId);
 
-        if (!image)
-            return res.status(404).json({ message: "Image not found" });
+        if (imageIndex === -1)
+            return res.status(404).json({ message: "Image not found in gallery" });
 
-        await cloudinary.uploader.destroy(image.public_id);
+        const image = gallery.images[imageIndex];
 
-        gallery.images.pull(imageId);
+        // Delete from Cloudinary
+        try {
+            await cloudinary.uploader.destroy(image.public_id);
+        } catch (cloudinaryError) {
+            console.error("Cloudinary deletion error:", cloudinaryError);
+            // Continue even if Cloudinary deletion fails
+        }
+
+        // Remove from array
+        gallery.images.splice(imageIndex, 1);
         await gallery.save();
 
         res.json({ message: "Image deleted successfully" });
 
     } catch (error) {
+        console.error("Delete Gallery Image Error:", error);
         res.status(500).json({ message: error.message });
     }
 };
