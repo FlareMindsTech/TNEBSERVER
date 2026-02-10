@@ -79,3 +79,48 @@ export const deleteMinthiran = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+export const updateMinthiran = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { year, month } = req.body;
+
+        let minthiran = await Minthiran.findById(id);
+
+        if (!minthiran) {
+            return res.status(404).json({ message: "Minthiran entry not found" });
+        }
+
+        // Check if year/month combination already exists for ANOTHER entry
+        if (year && month) {
+            const existingEntry = await Minthiran.findOne({ year, month, _id: { $ne: id } });
+            if (existingEntry) {
+                return res.status(400).json({ message: `An entry for ${month} ${year} already exists` });
+            }
+        }
+
+        // Update fields
+        if (year) minthiran.year = year;
+        if (month) minthiran.month = month;
+
+        // If a new file is uploaded
+        if (req.file) {
+            // Delete old file from Cloudinary
+            if (minthiran.pdf && minthiran.pdf.public_id) {
+                await cloudinary.uploader.destroy(minthiran.pdf.public_id, { resource_type: 'raw' });
+            }
+
+            // Set new file data
+            minthiran.pdf = {
+                url: req.file.path,
+                public_id: req.file.filename,
+            };
+        }
+
+        const updatedMinthiran = await minthiran.save();
+        res.status(200).json(updatedMinthiran);
+    } catch (error) {
+        console.error("Update Minthiran Error:", error);
+        res.status(500).json({ message: error.message });
+    }
+};

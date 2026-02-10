@@ -4,6 +4,7 @@ import {
     getAllMinthirans,
     getMinthiransByYear,
     deleteMinthiran,
+    updateMinthiran,
 } from "../Controllers/MinthiranController.js";
 import { upload } from "../config/Cloudinary.js";
 import { protect } from "../Middleware/authMiddleware.js";
@@ -21,6 +22,8 @@ router.post(
     upload.single("pdf"),
     createMinthiran
 );
+
+router.put("/:id", upload.single("pdf"), updateMinthiran);
 
 router.delete("/:id", deleteMinthiran);
 
