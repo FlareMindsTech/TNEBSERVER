@@ -3,6 +3,51 @@ import { cloudinary } from "../config/Cloudinary.js";
 import { PDFDocument } from 'pdf-lib';
 import axios from 'axios';
 
+const getPdfPageCount = async (pdfUrl) => {
+    try {
+        const response = await axios.get(pdfUrl, { responseType: 'arraybuffer' });
+        const pdfDoc = await PDFDocument.load(response.data);
+        return pdfDoc.getPageCount();
+    } catch (error) {
+        console.error('Error counting PDF pages:', error);
+        return 1;
+    }
+};
+
+const buildCloudinaryPageUrls = (publicId, pageCount) => {
+    const safePageCount = Math.max(1, Number(pageCount) || 1);
+    const pagesArray = [];
+
+    for (let i = 1; i <= safePageCount; i++) {
+        const pageUrl = cloudinary.url(publicId, {
+            resource_type: 'image',
+            type: 'upload',
+            page: i,
+            format: 'jpg',
+            secure: true
+        });
+        pagesArray.push(pageUrl);
+    }
+
+    return pagesArray;
+};
+
+const ensureMinthiranPages = async (minthiranDoc) => {
+    if (!minthiranDoc?.pdf?.url || !minthiranDoc?.pdf?.public_id) {
+        return minthiranDoc;
+    }
+
+    const hasPages = Array.isArray(minthiranDoc.pdf.pages) && minthiranDoc.pdf.pages.length > 0;
+    if (hasPages) {
+        return minthiranDoc;
+    }
+
+    const pageCount = await getPdfPageCount(minthiranDoc.pdf.url);
+    minthiranDoc.pdf.pages = buildCloudinaryPageUrls(minthiranDoc.pdf.public_id, pageCount);
+    await minthiranDoc.save();
+    return minthiranDoc;
+};
+
 
 export const createMinthiran = async (req, res) => {
     try {
@@ -18,26 +63,10 @@ export const createMinthiran = async (req, res) => {
         // Get page count for flip animation
         let pageCount = req.body.pageCount ? parseInt(req.body.pageCount) : 0;
         if (!pageCount) {
-            try {
-                const response = await axios.get(pdfUrl, { responseType: 'arraybuffer' });
-                const pdfDoc = await PDFDocument.load(response.data);
-                pageCount = pdfDoc.getPageCount();
-            } catch (err) {
-                console.error('Error counting pages:', err);
-                pageCount = 1;
-            }
+            pageCount = await getPdfPageCount(pdfUrl);
         }
 
-        const pagesArray = [];
-        for (let i = 1; i <= pageCount; i++) {
-            const pageUrl = cloudinary.url(publicId, {
-                page: i,
-                format: 'jpg',
-                secure: true,
-                resource_type: 'image'
-            });
-            pagesArray.push(pageUrl);
-        }
+        const pagesArray = buildCloudinaryPageUrls(publicId, pageCount);
 
         const newMinthiran = new Minthiran({
             year,
@@ -62,6 +91,8 @@ export const getAllMinthirans = async (req, res) => {
     try {
         const minthirans = await Minthiran.find().sort({ year: -1, month: -1 });
 
+        await Promise.all(minthirans.map((item) => ensureMinthiranPages(item)));
+
         const grouped = minthirans.reduce((acc, curr) => {
             const year = curr.year;
             if (!acc[year]) acc[year] = [];
@@ -79,7 +110,24 @@ export const getMinthiransByYear = async (req, res) => {
     try {
         const { year } = req.params;
         const minthirans = await Minthiran.find({ year }).sort({ createdAt: -1 });
+        await Promise.all(minthirans.map((item) => ensureMinthiranPages(item)));
         res.status(200).json(minthirans);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+export const getMinthiranById = async (req, res) => {
+    try {
+        const minthiran = await Minthiran.findById(req.params.id);
+
+        if (!minthiran) {
+            return res.status(404).json({ message: 'Minthiran entry not found' });
+        }
+
+        await ensureMinthiranPages(minthiran);
+
+        res.status(200).json(minthiran);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -139,26 +187,10 @@ export const updateMinthiran = async (req, res) => {
             // Get page count for flip animation
             let pageCount = req.body.pageCount ? parseInt(req.body.pageCount) : 0;
             if (!pageCount) {
-                try {
-                    const response = await axios.get(pdfUrl, { responseType: 'arraybuffer' });
-                    const pdfDoc = await PDFDocument.load(response.data);
-                    pageCount = pdfDoc.getPageCount();
-                } catch (err) {
-                    console.error('Error counting pages on update:', err);
-                    pageCount = 1;
-                }
+                pageCount = await getPdfPageCount(pdfUrl);
             }
 
-            const pagesArray = [];
-            for (let i = 1; i <= pageCount; i++) {
-                const pageUrl = cloudinary.url(publicId, {
-                    page: i,
-                    format: 'jpg',
-                    secure: true,
-                    resource_type: 'image'
-                });
-                pagesArray.push(pageUrl);
-            }
+            const pagesArray = buildCloudinaryPageUrls(publicId, pageCount);
 
             // Set new file data
             minthiran.pdf = {
@@ -168,6 +200,8 @@ export const updateMinthiran = async (req, res) => {
             };
             minthiran.totalWeight = (req.file.size / 1024 / 1024).toFixed(2) + ' MB';
         }
+
+        await ensureMinthiranPages(minthiran);
 
         const updatedMinthiran = await minthiran.save();
         res.status(200).json(updatedMinthiran);

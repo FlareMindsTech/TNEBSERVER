@@ -3,6 +3,7 @@ import {
     createMinthiran,
     getAllMinthirans,
     getMinthiransByYear,
+    getMinthiranById,
     deleteMinthiran,
     updateMinthiran,
 } from "../Controllers/MinthiranController.js";
@@ -15,6 +16,7 @@ const router = express.Router();
 
 router.get("/", getAllMinthirans);
 router.get("/year/:year", getMinthiransByYear);
+router.get("/:id", getMinthiranById);
 
 router.post(
     "/",protect,
