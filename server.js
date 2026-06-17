@@ -8,6 +8,7 @@ import userRoutes from './Routes/UserRoutes.js';
 import galleryRoutes from './Routes/GalleryRoutes.js';
 import minthiranRoutes from './Routes/MinthiranRoutes.js';
 import visitorRoutes from './Routes/VisitorRoutes.js';
+import aboutRoutes from './Routes/AboutRoutes.js';
 
 
 
@@ -35,6 +36,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/gallery', galleryRoutes);
 app.use('/api/minthiran', minthiranRoutes);
 app.use('/api/visitors', visitorRoutes);
+app.use('/api/about', aboutRoutes);
 
 app.get("/", (req, res) => {
   res.send("welcome"); 

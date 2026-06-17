@@ -2,21 +2,23 @@ import Event from '../Models/Event.js';
 import { cloudinary } from '../config/Cloudinary.js';
 export const createEvent = async (req, res) => {
   try {
-    const { title, description, date } = req.body;
+    const { title, description, date, category } = req.body;
     
     const newEvent = await Event.create({
       title,
       description,
       date,
+      category,
       pdfUrl: req.file.path,
       cloudinaryId: req.file.filename
     });
 
-    //Keep only the top 10 in the database
-    const allEvents = await Event.find().sort({ createdAt: -1 });
+    //Keep only the top 10 for the given category in the database
+    const targetCategory = newEvent.category || 'new_event';
+    const allEventsOfCategory = await Event.find({ category: targetCategory }).sort({ createdAt: -1 });
 
-    if (allEvents.length > 10) {
-      const surplusEvents = allEvents.slice(10); 
+    if (allEventsOfCategory.length > 10) {
+      const surplusEvents = allEventsOfCategory.slice(10); 
 
       for (let oldEvent of surplusEvents) {
         //Delete file from Cloudinary
@@ -35,9 +37,13 @@ export const createEvent = async (req, res) => {
 // --- GET ALL (Latest 10) ---
 export const getEvents = async (req, res) => {
   try {
+    const filter = {};
+    if (req.query.category) {
+      filter.category = req.query.category;
+    }
     // Sort by newest first. Because of our create logic, 
-    // there will never be more than 10 in the DB anyway.
-    const events = await Event.find().sort({ createdAt: -1 }); 
+    // there will never be more than 10 per category in the DB anyway.
+    const events = await Event.find(filter).sort({ createdAt: -1 }); 
     res.json(events);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -48,12 +54,16 @@ export const getEvents = async (req, res) => {
 export const updateEvent = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, date } = req.body;
+    const { title, description, date, category } = req.body;
 
     const event = await Event.findById(id);
     if (!event) return res.status(404).json({ message: "Event not found" });
 
-    let updateData = { title, description, date };
+    let updateData = {};
+    if (title !== undefined) updateData.title = title;
+    if (description !== undefined) updateData.description = description;
+    if (date !== undefined) updateData.date = date;
+    if (category !== undefined) updateData.category = category;
 
     if (req.file) {
       // Replace existing PDF in Cloudinary

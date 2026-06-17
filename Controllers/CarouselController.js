@@ -11,7 +11,8 @@ export const createCarousel = async (req, res) => {
     // Changed this to newCarousel
     const newCarousel = await Carousel.create({
       imageUrl: req.file.path,
-      cloudinaryId: req.file.filename
+      cloudinaryId: req.file.filename,
+      subtitle: req.body.subtitle
     });
 
     // Make sure this matches the variable name above
@@ -34,21 +35,27 @@ export const getCarousels = async (req, res) => {
 // update
 export const updateCarousel = async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: "Please upload a new image to update" });
-
     const oldCarousel = await Carousel.findById(req.params.id);
     if (!oldCarousel) return res.status(404).json({ error: 'Carousel item not found' });
 
-    //Delete the old image from Cloudinary
-    await cloudinary.uploader.destroy(oldCarousel.cloudinaryId);
+    const updateData = {};
+    if (req.body.title !== undefined) updateData.title = req.body.title;
+    if (req.body.description !== undefined) updateData.description = req.body.description;
+    if (req.body.subtitle !== undefined) updateData.subtitle = req.body.subtitle;
 
-    //Update with the new image info
+    if (req.file) {
+      //Delete the old image from Cloudinary
+      if (oldCarousel.cloudinaryId) {
+        await cloudinary.uploader.destroy(oldCarousel.cloudinaryId);
+      }
+      updateData.imageUrl = req.file.path;
+      updateData.cloudinaryId = req.file.filename;
+    }
+
+    //Update with the new info
     const updatedCarousel = await Carousel.findByIdAndUpdate(
       req.params.id, 
-      { 
-        imageUrl: req.file.path, 
-        cloudinaryId: req.file.filename 
-      }, 
+      updateData, 
       { new: true } 
     );
 

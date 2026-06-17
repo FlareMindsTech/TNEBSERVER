@@ -8,7 +8,7 @@ import {
     deleteGalleryImage
 } from "../Controllers/GalleryController.js";
 
-import { upload } from "../config/Cloudinary.js";
+import { uploadGallery } from "../config/Cloudinary.js";
 import { protect } from "../Middleware/authMiddleware.js";
 import { authorize } from "../Middleware/roleMiddleware.js";
 
@@ -23,10 +23,10 @@ router.get("/", getAllGalleries);
 router.get("/:id", getGalleryById);
 
 /* CREATE */
-router.post("/",protect ,authorize("admin"), upload.array("images", 10), createGallery);
+router.post("/",protect ,authorize("admin"), uploadGallery.array("images", 10), createGallery);
 
 /* UPDATE */
-router.put("/:id",protect, authorize("admin"), upload.array("images", 10), updateGallery);
+router.put("/:id",protect, authorize("admin"), uploadGallery.array("images", 10), updateGallery);
 
 /* DELETE SINGLE IMAGE */
 router.delete("/:galleryId/image/:imageId",protect, authorize("admin"), deleteGalleryImage);

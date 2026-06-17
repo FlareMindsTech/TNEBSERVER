@@ -9,6 +9,10 @@ const CarouselSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  subtitle: {
+    type: String,
+    trim: true
+  },
   imageUrl: {
     type: String,
     required: true

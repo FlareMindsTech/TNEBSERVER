@@ -10,6 +10,12 @@ const EventSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  category: {
+    type: String,
+    required: true,
+    default: 'new_event',
+    trim: true
+  },
   date: {
     type: Date, 
     required: [true, 'Please provide the event date']
