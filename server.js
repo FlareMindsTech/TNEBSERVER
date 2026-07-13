@@ -2,7 +2,7 @@ import 'dotenv/config'; // Modern way to load .env
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
-import eventRoutes from './Routes/EventRoutes.js'; 
+import eventRoutes from './Routes/EventRoutes.js';
 import carouselRoutes from './Routes/CarouselRoutes.js';
 import userRoutes from './Routes/UserRoutes.js';
 import galleryRoutes from './Routes/GalleryRoutes.js';
@@ -11,6 +11,7 @@ import visitorRoutes from './Routes/VisitorRoutes.js';
 import aboutRoutes from './Routes/AboutRoutes.js';
 import formsRoutes from './Routes/FormsRoutes.js';
 import importantNoticeRoutes from './Routes/ImportantNoticeRoutes.js';
+import lmNumberRoutes from './Routes/LMNumberRoutes.js';
 
 const app = express();
 
@@ -42,6 +43,7 @@ app.use('/api/visitors', visitorRoutes);
 app.use('/api/about', aboutRoutes);
 app.use('/api/forms', formsRoutes);
 app.use('/api/important-notices', importantNoticeRoutes);
+app.use('/api/lm-numbers', lmNumberRoutes);
 
 // Global error handler middleware to catch and format middleware/route errors as JSON
 app.use((err, req, res, next) => {
@@ -53,7 +55,7 @@ app.use((err, req, res, next) => {
 });
 
 app.get("/", (req, res) => {
-  res.send("welcome"); 
+  res.send("welcome");
 });
 
 const PORT = process.env.PORT || 5000;
