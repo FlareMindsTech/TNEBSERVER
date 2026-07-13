@@ -9,16 +9,12 @@ export const createNotice = async (req, res) => {
   try {
     const { Notice_title, Type, date } = req.body;
 
-    if (!req.file) {
-      return res.status(400).json({ message: 'Notice document/file is required' });
-    }
-
     const newNotice = await ImportantNotice.create({
       Notice_title,
       Type,
       date: date || undefined, // fallback to schema default (Date.now) if not provided
-      docUrl: req.file.path, // Cloudinary URL
-      cloudinaryId: req.file.filename // Cloudinary public ID
+      docUrl: req.file ? req.file.path : null, // Cloudinary URL
+      cloudinaryId: req.file ? req.file.filename : null // Cloudinary public ID
     });
 
     res.status(201).json(newNotice);

@@ -17,11 +17,11 @@ const ImportantNoticeSchema = new mongoose.Schema({
   },
   docUrl: {
     type: String, // Stores the Cloudinary file URL
-    required: true
+    default: null
   },
   cloudinaryId: {
     type: String, // Stores the Cloudinary public ID for deletion
-    required: true
+    default: null
   }
 }, {
   timestamps: true // adds createdAt and updatedAt
