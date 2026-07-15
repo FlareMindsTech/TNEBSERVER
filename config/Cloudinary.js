@@ -17,9 +17,13 @@ const storage = new CloudinaryStorage({
     folder: process.env.CLOUDINARY_FOLDER,
     resource_type: 'auto',
     public_id: (req, file) => {
-      const name = file.originalname.split('.')[0];
+      const sanitizedName = file.originalname
+        .split('.')
+        .slice(0, -1)
+        .join('.')
+        .replace(/[^a-zA-Z0-9-_]/g, '_');
       const extension = file.originalname.split('.').pop();
-      return `${Date.now()}-${name}.${extension}`;
+      return `${Date.now()}-${sanitizedName}.${extension}`;
     },
   },
 });
