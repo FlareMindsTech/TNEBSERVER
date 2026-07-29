@@ -13,7 +13,7 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
     trim: true
   },
-  phoneno: {
+  phone_no: {
     type: String,
     required: true,
     unique: true,
@@ -22,6 +22,25 @@ const userSchema = new mongoose.Schema({
   password: {
     type: String,
     required: true
+  },
+  city: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  pbo_number: {
+    type: String,
+    trim: true,
+    default: null
+  },
+  date_of_birth: {
+    type: Date,
+    default: null
+  },
+  emp_id: {
+    type: String,
+    trim: true,
+    default: null
   },
   lm_number: {
     type: String,

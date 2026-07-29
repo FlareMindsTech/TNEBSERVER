@@ -14,8 +14,12 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: process.env.CLOUDINARY_FOLDER,
-    resource_type: 'auto',
+    resource_type: (req, file) => {
+      if (file.originalname.match(/\.(pdf|doc|docx|xls|xlsx|txt)$/i)) {
+        return 'raw';
+      }
+      return 'auto';
+    },
     public_id: (req, file) => {
       const sanitizedName = file.originalname
         .split('.')
@@ -27,6 +31,7 @@ const storage = new CloudinaryStorage({
     },
   },
 });
+
 
 const upload = multer({ storage: storage });
 
