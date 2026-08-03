@@ -74,10 +74,10 @@ export const register = async (req, res) => {
   }
 
   try {
-    const userExists = await User.findOne({ $or: [{ email }, { phone_no }] });
+    const userExists = await User.findOne({ $or: [{ email }, { phone_no }, { lm_number }] });
 
     if (userExists) {
-      return res.status(400).json({ message: 'User with this email or phone number already exists' });
+      return res.status(400).json({ message: 'User with this email, phone number, or LM number already exists' });
     }
 
     let role = 'user';
