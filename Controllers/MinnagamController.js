@@ -106,3 +106,26 @@ export const deleteMinnagam = async (req, res) => {
     res.status(500).json({ message: "Error deleting Minnagam entry", error: error.message });
   }
 };
+
+export const updateMinnagamStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    
+    if (!status || !['Pending', 'Approved', 'Rejected'].includes(status)) {
+      return res.status(400).json({ message: "Valid status is required (Pending, Approved, Rejected)" });
+    }
+
+    const minnagam = await Minnagam.findById(req.params.id);
+    if (!minnagam) {
+      return res.status(404).json({ message: "Minnagam entry not found" });
+    }
+
+    minnagam.status = status;
+    const updatedMinnagam = await minnagam.save();
+    
+    res.status(200).json({ message: `Minnagam entry status updated to ${status}`, data: updatedMinnagam });
+  } catch (error) {
+    res.status(500).json({ message: "Error updating Minnagam status", error: error.message });
+  }
+};
+
