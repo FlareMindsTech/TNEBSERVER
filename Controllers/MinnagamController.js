@@ -38,7 +38,7 @@ export const createMinnagam = async (req, res) => {
 export const getMinnagams = async (req, res) => {
   try {
     let filter = {};
-    if (req.user.role !== 'admin' && req.user.role !== 'owner') {
+    if (req.user.role !== 'admin' && req.user.role !== 'owner' && req.user.role !== 'treasurer') {
       filter.user = req.user._id;
     }
     const minnagams = await Minnagam.find(filter).sort({ createdAt: -1 });

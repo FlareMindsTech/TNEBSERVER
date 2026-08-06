@@ -7,6 +7,7 @@ import { loginRateLimiter } from '../Middleware/loginRateLimiter.js';
 const router = express.Router();
 
 router.post('/register', userCtrl.register);
+router.post('/register-treasurer', userCtrl.registerTreasurer);
 router.post('/login', loginRateLimiter, userCtrl.login);
 router.post('/admin-login', userCtrl.adminLogin);
 router.post('/forgot-password', userCtrl.forgotPassword);

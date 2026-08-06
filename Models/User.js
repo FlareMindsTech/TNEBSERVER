@@ -8,15 +8,17 @@ const userSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: true,
+    required: function() { return this.role !== 'treasurer'; },
     unique: true,
+    sparse: true,
     lowercase: true,
     trim: true
   },
   phone_no: {
     type: String,
-    required: true,
+    required: function() { return this.role !== 'treasurer'; },
     unique: true,
+    sparse: true,
     trim: true
   },
   password: {
@@ -25,7 +27,7 @@ const userSchema = new mongoose.Schema({
   },
   city: {
     type: String,
-    required: true,
+    required: function() { return this.role !== 'treasurer'; },
     trim: true
   },
   pbo_number: {
@@ -50,7 +52,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['owner', 'admin', 'user'],
+    enum: ['owner', 'admin', 'treasurer', 'user'],
     default: 'user'
   },
   lastLoginLocation: {

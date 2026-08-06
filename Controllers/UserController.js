@@ -142,6 +142,52 @@ export const register = async (req, res) => {
 };
 
 /*
+    @desc Register a treasurer
+    @route POST /api/users/register-treasurer
+    @access Public or Admin
+*/
+export const registerTreasurer = async (req, res) => {
+  const { name, emp_id, password } = req.body;
+
+  if (!name || !emp_id || !password) {
+    return res.status(400).json({ message: 'Name, Employee ID, and Password are required' });
+  }
+
+  try {
+    const userExists = await User.findOne({ emp_id });
+
+    if (userExists) {
+      return res.status(400).json({ message: 'User with this Employee ID already exists' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const user = await User.create({
+      name,
+      emp_id,
+      password: hashedPassword,
+      role: 'treasurer'
+    });
+
+    if (user) {
+      res.status(201).json({
+        message: "Treasurer registration successful.",
+        _id: user._id,
+        name: user.name,
+        emp_id: user.emp_id,
+        role: user.role
+      });
+    } else {
+      res.status(400).json({ message: 'Invalid user data' });
+    }
+  } catch (error) {
+    console.error('Register Treasurer Error:', error);
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+};
+
+/*
     @desc Login user
     @route POST /api/users/login
     @access Public
