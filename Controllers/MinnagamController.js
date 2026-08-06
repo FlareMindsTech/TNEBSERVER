@@ -16,6 +16,7 @@ export const createMinnagam = async (req, res) => {
     const calculatedAmount = Number(units) * 20000;
 
     const newMinnagam = new Minnagam({
+      user: req.user._id,
       nomineeName,
       relation,
       units: Number(units),
@@ -36,7 +37,11 @@ export const createMinnagam = async (req, res) => {
 
 export const getMinnagams = async (req, res) => {
   try {
-    const minnagams = await Minnagam.find().sort({ createdAt: -1 });
+    let filter = {};
+    if (req.user.role !== 'admin' && req.user.role !== 'owner') {
+      filter.user = req.user._id;
+    }
+    const minnagams = await Minnagam.find(filter).sort({ createdAt: -1 });
     res.status(200).json(minnagams);
   } catch (error) {
     res.status(500).json({ message: "Error fetching Minnagam entries", error: error.message });

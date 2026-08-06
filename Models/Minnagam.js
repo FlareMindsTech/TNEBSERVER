@@ -2,6 +2,11 @@ import mongoose from "mongoose";
 
 const minnagamSchema = new mongoose.Schema(
   {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
     nomineeName: {
       type: String,
       required: true
