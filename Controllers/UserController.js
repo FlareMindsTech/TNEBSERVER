@@ -55,10 +55,10 @@ const sendEmailBackground = async (mailOptions) => {
     @access Public
 */
 export const register = async (req, res) => {
-  const { name, email, phone_no, city, lm_number, pbo_number, date_of_birth, emp_id } = req.body;
+  const { name, email, phone_no, city, lm_number, pbo_number, date_of_birth, emp_id, password, confirmPassword } = req.body;
 
   // Validate all fields are provided
-  if (!name || !email || !phone_no || !city || !lm_number || !pbo_number || !date_of_birth || !emp_id) {
+  if (!name || !email || !phone_no || !city || !lm_number || !pbo_number || !date_of_birth || !emp_id || !password || !confirmPassword) {
     return res.status(400).json({ message: 'All fields are required to register' });
   }
 
@@ -71,6 +71,11 @@ export const register = async (req, res) => {
   const phoneRegex = /^\d{10}$/;
   if (!phoneRegex.test(phone_no)) {
     return res.status(400).json({ message: 'Phone number must be exactly 10 digits' });
+  }
+
+  // Validate passwords match
+  if (password !== confirmPassword) {
+    return res.status(400).json({ message: 'Passwords do not match' });
   }
 
   try {
@@ -93,10 +98,8 @@ export const register = async (req, res) => {
 
     // role = validLM.role;
 
-    // Generate password based on name and DOB
-    const plainPassword = generatePassword(name, date_of_birth);
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(plainPassword, salt);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
     // Create User
     const user = await User.create({
@@ -118,19 +121,8 @@ export const register = async (req, res) => {
           await LMNumber.findOneAndUpdate({ number: lm_number }, { isUsed: true, usedBy: user._id });
       }
 
-      // Send Email with password
-      const mailOptions = {
-        from: process.env.SMTP_USER,
-        to: email,
-        subject: 'Welcome! Your Account Registration Details',
-        text: `Hello ${name},\n\nYou have successfully registered.\n\nYour login details are:\nUser ID: ${emp_id} OR ${pbo_number}\nPassword: ${plainPassword}\n\nPlease keep this password safe.\n\nBest Regards,\nTNEB Admin`
-      };
-
-      // Dispatch email in background so it doesn't delay the response
-      sendEmailBackground(mailOptions);
-
       res.status(201).json({
-        message: "Registration successful. Your password has been sent to your email."
+        message: "Registration successful."
       });
     } else {
       res.status(400).json({ message: 'Invalid user data' });
