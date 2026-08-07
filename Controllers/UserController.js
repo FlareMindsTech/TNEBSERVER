@@ -57,9 +57,9 @@ const sendEmailBackground = async (mailOptions) => {
 export const register = async (req, res) => {
   const { name, email, phone_no, city, lm_number, pbo_number, date_of_birth, emp_id, password, confirmPassword } = req.body;
 
-  // Validate all fields are provided
-  if (!name || !email || !phone_no || !city || !lm_number || !pbo_number || !date_of_birth || !emp_id || !password || !confirmPassword) {
-    return res.status(400).json({ message: 'All fields are required to register' });
+  // Validate required fields are provided
+  if (!name || !email || !phone_no || !password || !confirmPassword) {
+    return res.status(400).json({ message: 'Name, email, phone number, and password are required' });
   }
 
   // Validate Email contains '@'
@@ -79,24 +79,17 @@ export const register = async (req, res) => {
   }
 
   try {
-    const userExists = await User.findOne({ $or: [{ email }, { phone_no }, { lm_number }] });
+    const orConditions = [{ email }, { phone_no }];
+    if (lm_number) {
+        orConditions.push({ lm_number });
+    }
+    const userExists = await User.findOne({ $or: orConditions });
 
     if (userExists) {
       return res.status(400).json({ message: 'User with this email, phone number, or LM number already exists' });
     }
 
     let role = 'user';
-
-    // const validLM = await LMNumber.findOne({ number: lm_number });
-    // if (!validLM) {
-    //     return res.status(400).json({ message: 'Invalid Lifetime Membership Number' });
-    // }
-
-    // if (validLM.isUsed) {
-    //     return res.status(400).json({ message: 'This LM Number has already been used' });
-    // }
-
-    // role = validLM.role;
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
@@ -117,7 +110,7 @@ export const register = async (req, res) => {
 
     if (user) {
       // Mark LM as used if applicable
-      if (role !== 'owner') {
+      if (role !== 'owner' && lm_number) {
           await LMNumber.findOneAndUpdate({ number: lm_number }, { isUsed: true, usedBy: user._id });
       }
 
@@ -188,9 +181,9 @@ export const login = async (req, res) => {
   const { identifier, password } = req.body;
 
   try {
-    // Identifier can be emp_id or pbo_number
+    // Identifier can be email or phone_no
     const user = await User.findOne({
-      $or: [{ emp_id: identifier }, { pbo_number: identifier }]
+      $or: [{ email: identifier }, { phone_no: identifier }]
     });
 
     if (user && (await bcrypt.compare(password, user.password))) {
@@ -203,7 +196,7 @@ export const login = async (req, res) => {
         token: generateToken(user._id, user.role),
       });
     } else {
-      res.status(401).json({ message: 'Invalid Employee ID / PBO Number or password' });
+      res.status(401).json({ message: 'Invalid Email / Phone Number or password' });
     }
   } catch (error) {
     console.error('Login Error:', error);

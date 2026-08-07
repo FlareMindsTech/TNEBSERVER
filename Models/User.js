@@ -27,7 +27,6 @@ const userSchema = new mongoose.Schema({
   },
   city: {
     type: String,
-    required: function() { return this.role !== 'treasurer'; },
     trim: true
   },
   pbo_number: {
