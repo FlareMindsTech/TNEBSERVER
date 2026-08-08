@@ -80,13 +80,10 @@ export const register = async (req, res) => {
 
   try {
     const orConditions = [{ email }, { phone_no }];
-    if (lm_number) {
-        orConditions.push({ lm_number });
-    }
     const userExists = await User.findOne({ $or: orConditions });
 
     if (userExists) {
-      return res.status(400).json({ message: 'User with this email, phone number, or LM number already exists' });
+      return res.status(400).json({ message: 'User with this email, or phone number already exists' });
     }
 
     let role = 'user';
@@ -94,19 +91,23 @@ export const register = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create User
-    const user = await User.create({
+    // Create User payload
+    const userData = {
       name,
       email,
       phone_no,
-      city,
       password: hashedPassword,
-      lm_number,
-      role,
-      pbo_number,
-      date_of_birth,
-      emp_id
-    });
+      role
+    };
+
+    if (city) userData.city = city;
+    if (lm_number) userData.lm_number = lm_number;
+    if (pbo_number) userData.pbo_number = pbo_number;
+    if (date_of_birth) userData.date_of_birth = date_of_birth;
+    if (emp_id) userData.emp_id = emp_id;
+
+    // Create User
+    const user = await User.create(userData);
 
     if (user) {
       // Mark LM as used if applicable
@@ -132,17 +133,17 @@ export const register = async (req, res) => {
     @access Public or Admin
 */
 export const registerTreasurer = async (req, res) => {
-  const { name, emp_id, password } = req.body;
+  const { name, email, phone_no, password } = req.body;
 
-  if (!name || !emp_id || !password) {
-    return res.status(400).json({ message: 'Name, Employee ID, and Password are required' });
+  if (!name || !email || !phone_no || !password) {
+    return res.status(400).json({ message: 'Name, Email, Phone Number, and Password are required' });
   }
 
   try {
-    const userExists = await User.findOne({ emp_id });
+    const userExists = await User.findOne({ $or: [{ email }, { phone_no }] });
 
     if (userExists) {
-      return res.status(400).json({ message: 'User with this Employee ID already exists' });
+      return res.status(400).json({ message: 'User with this Email or Phone Number already exists' });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -150,7 +151,8 @@ export const registerTreasurer = async (req, res) => {
 
     const user = await User.create({
       name,
-      emp_id,
+      email,
+      phone_no,
       password: hashedPassword,
       role: 'treasurer'
     });
@@ -160,7 +162,8 @@ export const registerTreasurer = async (req, res) => {
         message: "Treasurer registration successful.",
         _id: user._id,
         name: user.name,
-        emp_id: user.emp_id,
+        email: user.email,
+        phone_no: user.phone_no,
         role: user.role
       });
     } else {
