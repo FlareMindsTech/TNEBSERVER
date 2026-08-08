@@ -249,42 +249,30 @@ export const adminLogin = async (req, res) => {
     @access Public
 */
 export const forgotPassword = async (req, res) => {
-  const { email, emp_id, pbo_number, lm_number } = req.body;
+  const { identifier, password, confirmPassword } = req.body;
 
-  if (!email || !emp_id || !pbo_number || !lm_number) {
-    return res.status(400).json({ message: 'All fields are required to verify identity' });
+  if (!identifier || !password || !confirmPassword) {
+    return res.status(400).json({ message: 'Identifier (Email or Phone Number), password, and confirm password are required' });
+  }
+
+  if (password !== confirmPassword) {
+    return res.status(400).json({ message: 'Passwords do not match' });
   }
 
   try {
     const user = await User.findOne({
-      email,
-      emp_id,
-      pbo_number,
-      lm_number
+      $or: [{ email: identifier }, { phone_no: identifier }]
     });
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found with the provided details' });
+      return res.status(404).json({ message: 'User not found with the provided email or phone number' });
     }
 
-    // Generate new password
-    const newPassword = generatePassword(user.name, user.date_of_birth);
     const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(newPassword, salt);
+    user.password = await bcrypt.hash(password, salt);
     await user.save();
 
-    // Send email with new password
-    const mailOptions = {
-      from: process.env.SMTP_USER,
-      to: email,
-      subject: 'Password Reset Successful',
-      text: `Hello ${user.name},\n\nYour password has been successfully reset.\n\nYour new login details are:\nUser ID: ${user.emp_id} OR ${user.pbo_number}\nNew Password: ${newPassword}\n\nPlease keep this password safe.\n\nBest Regards,\nTNEB Admin`
-    };
-
-    // Dispatch email in background so it doesn't delay the response
-    sendEmailBackground(mailOptions);
-
-    res.json({ message: 'A new password has been sent to your registered email address.' });
+    res.json({ message: 'Password has been successfully updated.' });
   } catch (error) {
     console.error('Forgot Password Error:', error);
     res.status(500).json({ message: 'Server Error', error: error.message });

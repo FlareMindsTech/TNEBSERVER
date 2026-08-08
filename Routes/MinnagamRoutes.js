@@ -11,6 +11,6 @@ router.get('/', protect, getMinnagams);
 router.get('/:id', protect, getMinnagamById);
 router.put('/:id', protect, authorize('owner', 'admin', 'treasurer'), upload.single('document'), updateMinnagam);
 router.patch('/:id/status', protect, authorize('owner', 'admin', 'treasurer'), updateMinnagamStatus);
-router.delete('/:id', protect, authorize('owner', 'admin'), deleteMinnagam);
+router.delete('/:id', protect, authorize('owner', 'admin', 'treasurer'), deleteMinnagam);
 
 export default router;
