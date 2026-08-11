@@ -25,7 +25,7 @@ export const createCarousel = async (req, res) => {
 // get
 export const getCarousels = async (req, res) => {
   try {
-    const carousels = await Carousel.find(); 
+    const carousels = await Carousel.find().sort({ createdAt: -1 }); 
     res.json(carousels);
   } catch (err) {
     res.status(500).json({ error: err.message });
