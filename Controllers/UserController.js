@@ -133,10 +133,10 @@ export const register = async (req, res) => {
     @access Public or Admin
 */
 export const registerTreasurer = async (req, res) => {
-  const { name, email, phone_no, password } = req.body;
+  const { name, email, phone_no, role, password } = req.body;
 
-  if (!name || !email || !phone_no || !password) {
-    return res.status(400).json({ message: 'Name, Email, Phone Number, and Password are required' });
+  if (!name || !email || !phone_no || !role || !password) {
+    return res.status(400).json({ message: 'Name, Email, Phone Number, Role, and Password are required' });
   }
 
   try {
@@ -154,7 +154,7 @@ export const registerTreasurer = async (req, res) => {
       email,
       phone_no,
       password: hashedPassword,
-      role: 'treasurer'
+      role: role
     });
 
     if (user) {
@@ -216,9 +216,9 @@ export const adminLogin = async (req, res) => {
   const { identifier, password } = req.body;
 
   try {
-    // Identifier can be name or phone_no
+    // Identifier can be name, email, or phone_no
     const user = await User.findOne({
-      $or: [{ name: identifier }, { phone_no: identifier }]
+      $or: [{ name: identifier }, { email: identifier }, { phone_no: identifier }]
     });
 
     if (user && (await bcrypt.compare(password, user.password))) {
@@ -235,7 +235,7 @@ export const adminLogin = async (req, res) => {
         token: generateToken(user._id, user.role),
       });
     } else {
-      res.status(401).json({ message: 'Invalid Name / Phone Number or password' });
+      res.status(401).json({ message: 'Invalid Name / Email / Phone Number or password' });
     }
   } catch (error) {
     console.error('Admin Login Error:', error);
