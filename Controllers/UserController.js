@@ -55,49 +55,64 @@ const sendEmailBackground = async (mailOptions) => {
     @access Public
 */
 export const register = async (req, res) => {
-  const { name, email, phone_no, city, lm_number, pbo_number, date_of_birth, emp_id, password, confirmPassword } = req.body;
+  const {
+    name,
+    email,
+    phone_no,
+    city,
+    lm_number,
+    pbo_number,
+    date_of_birth,
+    emp_id,
+    password,
+    confirmPassword
+  } = req.body;
 
-  // Validate required fields are provided
+  // Required fields
   if (!name || !email || !phone_no || !password || !confirmPassword) {
-    return res.status(400).json({ message: 'Name, email, phone number, and password are required' });
+    return res.status(400).json({
+      message: 'Name, email, phone number, and password are required'
+    });
   }
 
-  // Validate Email contains '@'
-  if (!email.includes('@')) {
-    return res.status(400).json({ message: 'Please provide a valid email address containing @' });
+  // Normalize
+  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedPhone = phone_no.trim();
+
+  // Email validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!emailRegex.test(normalizedEmail)) {
+    return res.status(400).json({
+      message: 'Please provide a valid email address'
+    });
   }
 
-  // Validate Phone Number is exactly 10 digits
-  const phoneRegex = /^\d{10}$/;
-  if (!phoneRegex.test(phone_no)) {
-    return res.status(400).json({ message: 'Phone number must be exactly 10 digits' });
+  // Phone validation
+  if (!/^\d{10}$/.test(normalizedPhone)) {
+    return res.status(400).json({
+      message: 'Phone number must be exactly 10 digits'
+    });
   }
 
-  // Validate passwords match
+  // Password validation
   if (password !== confirmPassword) {
-    return res.status(400).json({ message: 'Passwords do not match' });
+    return res.status(400).json({
+      message: 'Passwords do not match'
+    });
   }
 
   try {
-    const orConditions = [{ email }, { phone_no }];
-    const userExists = await User.findOne({ $or: orConditions });
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    if (userExists) {
-      return res.status(400).json({ message: 'User with this email, or phone number already exists' });
-    }
-
-    let role = 'user';
-
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Create User payload
+    // User data
     const userData = {
-      name,
-      email,
-      phone_no,
+      name: name.trim(),
+      email: normalizedEmail,
+      phone_no: normalizedPhone,
       password: hashedPassword,
-      role
+      role: 'user'
     };
 
     if (city) userData.city = city;
@@ -106,27 +121,49 @@ export const register = async (req, res) => {
     if (date_of_birth) userData.date_of_birth = date_of_birth;
     if (emp_id) userData.emp_id = emp_id;
 
-    // Create User
-    const user = await User.create(userData);
+    // Create user
+    await User.create(userData);
 
-    if (user) {
-      // Mark LM as used if applicable
-      if (role !== 'owner' && lm_number) {
-          await LMNumber.findOneAndUpdate({ number: lm_number }, { isUsed: true, usedBy: user._id });
+    return res.status(201).json({
+      message: 'Registration successful.'
+    });
+
+  } catch (error) {
+
+    // Duplicate key
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern || {})[0];
+
+      if (field === 'email') {
+        return res.status(409).json({
+          message: 'Email already exists'
+        });
       }
 
-      res.status(201).json({
-        message: "Registration successful."
+      if (field === 'phone_no') {
+        return res.status(409).json({
+          message: 'Phone number already exists'
+        });
+      }
+
+      if (field === 'lm_number') {
+        return res.status(409).json({
+          message: 'LM number already exists'
+        });
+      }
+
+      return res.status(409).json({
+        message: 'Duplicate data already exists'
       });
-    } else {
-      res.status(400).json({ message: 'Invalid user data' });
     }
-  } catch (error) {
+
     console.error('Register Error:', error);
-    res.status(500).json({ message: 'Server Error', error: error.message });
+
+    return res.status(500).json({
+      message: 'Server Error'
+    });
   }
 };
-
 /*
     @desc Register a treasurer
     @route POST /api/users/register-treasurer
@@ -183,27 +220,59 @@ export const registerTreasurer = async (req, res) => {
 export const login = async (req, res) => {
   const { identifier, password } = req.body;
 
+  // Basic validation
+  if (!identifier || !password) {
+    return res.status(400).json({
+      message: 'Email/Phone number and password are required'
+    });
+  }
+
+  const normalizedIdentifier = identifier.trim().toLowerCase();
+
   try {
-    // Identifier can be email or phone_no
+    // Find user using indexed email or phone number
     const user = await User.findOne({
-      $or: [{ email: identifier }, { phone_no: identifier }]
+      $or: [
+        { email: normalizedIdentifier },
+        { phone_no: identifier.trim() }
+      ]
+    }).lean();
+
+    if (!user) {
+      return res.status(401).json({
+        message: 'Invalid Email / Phone Number or password'
+      });
+    }
+
+    // Compare password
+    const isPasswordValid = await bcrypt.compare(
+      password,
+      user.password
+    );
+
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        message: 'Invalid Email / Phone Number or password'
+      });
+    }
+
+    // Generate token
+    const token = generateToken(user._id, user.role);
+
+    return res.status(200).json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      token
     });
 
-    if (user && (await bcrypt.compare(password, user.password))) {
-
-      res.json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        token: generateToken(user._id, user.role),
-      });
-    } else {
-      res.status(401).json({ message: 'Invalid Email / Phone Number or password' });
-    }
   } catch (error) {
     console.error('Login Error:', error);
-    res.status(500).json({ message: 'Server Error', error: error.message });
+
+    return res.status(500).json({
+      message: 'Server Error'
+    });
   }
 };
 
@@ -215,31 +284,73 @@ export const login = async (req, res) => {
 export const adminLogin = async (req, res) => {
   const { identifier, password } = req.body;
 
+  // 1. Validate required fields
+  if (!identifier || !password) {
+    return res.status(400).json({
+      message: 'Name, email/phone number, and password are required'
+    });
+  }
+
+  // 2. Normalize input
+  const normalizedIdentifier = identifier.trim();
+  const normalizedEmail = normalizedIdentifier.toLowerCase();
+
   try {
-    // Identifier can be name, email, or phone_no
+    // 3. Find admin/owner
     const user = await User.findOne({
-      $or: [{ name: identifier }, { email: identifier }, { phone_no: identifier }]
+      $or: [
+        { name: normalizedIdentifier },
+        { email: normalizedEmail },
+        { phone_no: normalizedIdentifier }
+      ]
+    })
+      .select('_id name email role password')
+      .lean();
+
+    // 4. User not found
+    if (!user) {
+      return res.status(401).json({
+        message: 'Invalid Name / Email / Phone Number or password'
+      });
+    }
+
+    // 5. Check admin privileges
+    if (user.role !== 'admin' && user.role !== 'owner') {
+      return res.status(403).json({
+        message: 'Access denied. Admins only.'
+      });
+    }
+
+    // 6. Check password
+    const isPasswordValid = await bcrypt.compare(
+      password,
+      user.password
+    );
+
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        message: 'Invalid Name / Email / Phone Number or password'
+      });
+    }
+
+    // 7. Generate token
+    const token = generateToken(user._id, user.role);
+
+    // 8. Response
+    return res.status(200).json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      token
     });
 
-    if (user && (await bcrypt.compare(password, user.password))) {
-      // Check if they have admin privileges (optional but good practice)
-      if (user.role !== 'admin' && user.role !== 'owner') {
-        return res.status(403).json({ message: 'Access denied. Admins only.' });
-      }
-
-      res.json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        token: generateToken(user._id, user.role),
-      });
-    } else {
-      res.status(401).json({ message: 'Invalid Name / Email / Phone Number or password' });
-    }
   } catch (error) {
     console.error('Admin Login Error:', error);
-    res.status(500).json({ message: 'Server Error', error: error.message });
+
+    return res.status(500).json({
+      message: 'Server Error'
+    });
   }
 };
 
@@ -251,34 +362,60 @@ export const adminLogin = async (req, res) => {
 export const forgotPassword = async (req, res) => {
   const { identifier, password, confirmPassword } = req.body;
 
+  // 1. Validate required fields
   if (!identifier || !password || !confirmPassword) {
-    return res.status(400).json({ message: 'Identifier (Email or Phone Number), password, and confirm password are required' });
+    return res.status(400).json({
+      message:
+        'Identifier (Email or Phone Number), password, and confirm password are required'
+    });
   }
 
+  // 2. Validate passwords
   if (password !== confirmPassword) {
-    return res.status(400).json({ message: 'Passwords do not match' });
+    return res.status(400).json({
+      message: 'Passwords do not match'
+    });
   }
+
+  // 3. Normalize identifier
+  const normalizedIdentifier = identifier.trim().toLowerCase();
 
   try {
+    // 4. Find user
     const user = await User.findOne({
-      $or: [{ email: identifier }, { phone_no: identifier }]
+      $or: [
+        { email: normalizedIdentifier },
+        { phone_no: identifier.trim() }
+      ]
     });
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found with the provided email or phone number' });
+      return res.status(404).json({
+        message: 'User not found with the provided email or phone number'
+      });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
+    // 5. Hash new password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // 6. Update password
+    user.password = hashedPassword;
+
+    // 7. Save user
     await user.save();
 
-    res.json({ message: 'Password has been successfully updated.' });
+    return res.status(200).json({
+      message: 'Password has been successfully updated.'
+    });
+
   } catch (error) {
     console.error('Forgot Password Error:', error);
-    res.status(500).json({ message: 'Server Error', error: error.message });
+
+    return res.status(500).json({
+      message: 'Server Error'
+    });
   }
 };
-
 /*
     @desc Get all users
     @route GET /api/users/all
