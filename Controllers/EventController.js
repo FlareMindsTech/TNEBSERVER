@@ -54,25 +54,32 @@ const safeDestroyCloudinary = async (publicIdOrUrl) => {
   }
 };
 
-// Enforces max 10 events rule: removes 11th and older events from DB & Cloudinary
+/**
+ * Enforces maximum 10 events rule.
+ * When more than 10 events exist, automatically deletes the oldest event(s) and their attached files from Cloudinary and DB.
+ */
 const enforceMaxTenEvents = async (category) => {
   try {
     const filter = category ? { category } : {};
-    const allEvents = await Event.find(filter).sort({ createdAt: -1, date: -1 });
+    // Sort descending by createdAt and _id so index 0..9 are the newest, 10+ are the oldest
+    const allEvents = await Event.find(filter).sort({ createdAt: -1, _id: -1 });
 
     if (allEvents.length > 10) {
-      const surplusEvents = allEvents.slice(10);
+      const surplusEvents = allEvents.slice(10); // The oldest events beyond top 10
 
       for (const oldEvent of surplusEvents) {
-        // Clean up file from Cloudinary
+        console.log(`🗑️ Auto-deleting oldest surplus event: "${oldEvent.title}" (Created: ${oldEvent.createdAt})`);
+
+        // 1. Delete the attached file from Cloudinary
         const targetId = oldEvent.cloudinaryId || oldEvent.pdfUrl;
         if (targetId) {
           await safeDestroyCloudinary(targetId);
         }
 
-        // Delete record from MongoDB
+        // 2. Delete the record from MongoDB
         try {
           await Event.findByIdAndDelete(oldEvent._id);
+          console.log(`✅ Successfully deleted oldest event ID: ${oldEvent._id}`);
         } catch (dbErr) {
           console.error(`[DB] Error deleting surplus event ${oldEvent._id}:`, dbErr.message);
         }
@@ -107,7 +114,7 @@ export const createEvent = async (req, res) => {
       cloudinaryId: req.file ? req.file.filename : null
     });
 
-    // Automatically enforce max 10 limit (removes 11th+ oldest events from DB & Cloudinary)
+    // Automatically enforce max 10 limit (deletes oldest events & files beyond 10)
     await enforceMaxTenEvents(eventCategory);
     await enforceMaxTenEvents(); // Also clean up overall collection if surplus exists
 
