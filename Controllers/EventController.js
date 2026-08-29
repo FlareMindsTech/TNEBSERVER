@@ -1,36 +1,131 @@
 import Event from '../Models/Event.js';
 import { cloudinary } from '../config/Cloudinary.js';
+
+// Helper to extract Cloudinary public ID from URL if needed
+const getPublicIdFromUrl = (url) => {
+  if (!url || typeof url !== 'string') return null;
+  try {
+    const parts = url.split('/upload/');
+    if (parts.length > 1) {
+      let afterUpload = parts[1];
+      // Strip version number like v1234567890/
+      afterUpload = afterUpload.replace(/^v\d+\//, '');
+      return afterUpload;
+    }
+  } catch (err) {
+    console.warn('[Cloudinary] Error parsing URL publicId:', err.message);
+  }
+  return null;
+};
+
+// Safe helper to destroy Cloudinary assets across all resource types without throwing uncaught errors
+const safeDestroyCloudinary = async (publicIdOrUrl) => {
+  if (!publicIdOrUrl) return;
+
+  let publicId = publicIdOrUrl;
+  if (typeof publicId === 'string' && (publicId.startsWith('http://') || publicId.startsWith('https://'))) {
+    publicId = getPublicIdFromUrl(publicIdOrUrl) || publicId;
+  }
+
+  // 1. Try destroying as raw file (for PDF, docx, etc.)
+  try {
+    await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+  } catch (err) {
+    console.warn(`[Cloudinary] Raw destroy failed for ${publicId}:`, err.message);
+  }
+
+  // 2. Try destroying as image
+  try {
+    await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+  } catch (err) {
+    console.warn(`[Cloudinary] Image destroy failed for ${publicId}:`, err.message);
+  }
+
+  // 3. Try image destroy without file extension if extension was part of publicId
+  if (typeof publicId === 'string' && publicId.includes('.')) {
+    const withoutExt = publicId.substring(0, publicId.lastIndexOf('.'));
+    if (withoutExt) {
+      try {
+        await cloudinary.uploader.destroy(withoutExt, { resource_type: 'image' });
+      } catch (err) {
+        // Silently continue
+      }
+    }
+  }
+};
+
+// Enforces max 10 events rule: removes 11th and older events from DB & Cloudinary
+const enforceMaxTenEvents = async (category) => {
+  try {
+    const filter = category ? { category } : {};
+    const allEvents = await Event.find(filter).sort({ createdAt: -1, date: -1 });
+
+    if (allEvents.length > 10) {
+      const surplusEvents = allEvents.slice(10);
+
+      for (const oldEvent of surplusEvents) {
+        // Clean up file from Cloudinary
+        const targetId = oldEvent.cloudinaryId || oldEvent.pdfUrl;
+        if (targetId) {
+          await safeDestroyCloudinary(targetId);
+        }
+
+        // Delete record from MongoDB
+        try {
+          await Event.findByIdAndDelete(oldEvent._id);
+        } catch (dbErr) {
+          console.error(`[DB] Error deleting surplus event ${oldEvent._id}:`, dbErr.message);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[EventController] Error enforcing event limit:', err.message);
+  }
+};
+
+// --- CREATE EVENT ---
 export const createEvent = async (req, res) => {
   try {
     const { title, description, date, category } = req.body;
-    
-    const newEvent = await Event.create({
-      title,
-      description,
-      date,
-      category,
-      pdfUrl: req.file.path,
-      cloudinaryId: req.file.filename
-    });
 
-    //Keep only the top 10 for the given category in the database
-    const targetCategory = newEvent.category || 'new_event';
-    const allEventsOfCategory = await Event.find({ category: targetCategory }).sort({ createdAt: -1 });
-
-    if (allEventsOfCategory.length > 10) {
-      const surplusEvents = allEventsOfCategory.slice(10); 
-
-      for (let oldEvent of surplusEvents) {
-        //Delete file from Cloudinary
-        await cloudinary.uploader.destroy(oldEvent.cloudinaryId, { resource_type: 'raw' });
-        //Delete record from DB
-        await Event.findByIdAndDelete(oldEvent._id);
+    // Validate required fields
+    if (!title || !title.trim()) {
+      if (req.file?.filename) {
+        await safeDestroyCloudinary(req.file.filename);
       }
+      return res.status(400).json({ message: 'Event title is required' });
     }
 
-    res.status(201).json(newEvent);
+    const eventCategory = category ? category.trim() : 'new_event';
+
+    const newEvent = await Event.create({
+      title: title.trim(),
+      description: description ? description.trim() : '',
+      date: date || new Date(),
+      category: eventCategory,
+      pdfUrl: req.file ? req.file.path : null,
+      cloudinaryId: req.file ? req.file.filename : null
+    });
+
+    // Automatically enforce max 10 limit (removes 11th+ oldest events from DB & Cloudinary)
+    await enforceMaxTenEvents(eventCategory);
+    await enforceMaxTenEvents(); // Also clean up overall collection if surplus exists
+
+    // Format response
+    const responseData = newEvent.toObject ? newEvent.toObject() : { ...newEvent };
+    responseData.pdf = responseData.pdfUrl;
+
+    res.status(201).json(responseData);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('❌ Error creating event:', err);
+    // Cleanup newly uploaded file on failure to prevent orphaned files in Cloudinary
+    if (req.file?.filename) {
+      await safeDestroyCloudinary(req.file.filename);
+    }
+    res.status(500).json({ 
+      message: err.message || 'Failed to create event', 
+      error: err.message || err 
+    });
   }
 };
 
@@ -41,12 +136,26 @@ export const getEvents = async (req, res) => {
     if (req.query.category) {
       filter.category = req.query.category;
     }
-    // Sort by newest first. Because of our create logic, 
-    // there will never be more than 10 per category in the DB anyway.
-    const events = await Event.find(filter).sort({ createdAt: -1 }); 
-    res.json(events);
+
+    // Auto-clean any surplus events older than 10
+    await enforceMaxTenEvents(req.query.category);
+
+    const events = await Event.find(filter).sort({ createdAt: -1, date: -1 });
+    
+    // Map with pdf alias for frontend compatibility
+    const mappedEvents = events.map(evt => {
+      const obj = evt.toObject ? evt.toObject() : { ...evt };
+      obj.pdf = obj.pdfUrl;
+      return obj;
+    });
+
+    res.json(mappedEvents);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('❌ Error fetching events:', err);
+    res.status(500).json({ 
+      message: err.message || 'Failed to fetch events', 
+      error: err.message 
+    });
   }
 };
 
@@ -57,48 +166,69 @@ export const updateEvent = async (req, res) => {
     const { title, description, date, category } = req.body;
 
     const event = await Event.findById(id);
-    if (!event) return res.status(404).json({ message: "Event not found" });
+    if (!event) {
+      if (req.file?.filename) {
+        await safeDestroyCloudinary(req.file.filename);
+      }
+      return res.status(404).json({ message: 'Event not found' });
+    }
 
     let updateData = {};
-    if (title !== undefined) updateData.title = title;
-    if (description !== undefined) updateData.description = description;
+    if (title !== undefined) updateData.title = title.trim();
+    if (description !== undefined) updateData.description = description.trim();
     if (date !== undefined) updateData.date = date;
-    if (category !== undefined) updateData.category = category;
+    if (category !== undefined) updateData.category = category.trim();
 
     if (req.file) {
-      // Replace existing PDF in Cloudinary
-      if (event.cloudinaryId) {
-        await cloudinary.uploader.destroy(event.cloudinaryId, { resource_type: 'raw' });
+      // Replace existing file in Cloudinary safely
+      const oldFile = event.cloudinaryId || event.pdfUrl;
+      if (oldFile) {
+        await safeDestroyCloudinary(oldFile);
       }
       updateData.pdfUrl = req.file.path;
       updateData.cloudinaryId = req.file.filename;
     }
 
     const updatedEvent = await Event.findByIdAndUpdate(id, updateData, { new: true });
-    res.json(updatedEvent);
+    const responseData = updatedEvent.toObject ? updatedEvent.toObject() : { ...updatedEvent };
+    responseData.pdf = responseData.pdfUrl;
+
+    res.json(responseData);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('❌ Error updating event:', err);
+    if (req.file?.filename) {
+      await safeDestroyCloudinary(req.file.filename);
+    }
+    res.status(500).json({ 
+      message: err.message || 'Failed to update event', 
+      error: err.message 
+    });
   }
 };
 
-// --- DELETE (Corrected with Cloudinary Cleanup) ---
+// --- DELETE ---
 export const deleteEvent = async (req, res) => {
   try {
     const { id } = req.params;
     const event = await Event.findById(id);
 
-    if (!event) return res.status(404).json({ message: "Event not found" });
+    if (!event) return res.status(404).json({ message: 'Event not found' });
 
-    // 1. Remove file from Cloudinary
-    if (event.cloudinaryId) {
-      await cloudinary.uploader.destroy(event.cloudinaryId, { resource_type: 'raw' });
+    // 1. Remove file from Cloudinary safely
+    const targetFile = event.cloudinaryId || event.pdfUrl;
+    if (targetFile) {
+      await safeDestroyCloudinary(targetFile);
     }
 
     // 2. Remove from MongoDB
     await Event.findByIdAndDelete(id);
 
-    res.json({ message: "Event and associated PDF deleted successfully" });
+    res.json({ message: 'Event and associated file deleted successfully' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('❌ Error deleting event:', err);
+    res.status(500).json({ 
+      message: err.message || 'Failed to delete event', 
+      error: err.message 
+    });
   }
 };

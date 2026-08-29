@@ -8,25 +8,30 @@ const EventSchema = new mongoose.Schema({
   },
   description: {
     type: String,
-    required: true
+    required: false,
+    default: '',
+    trim: true
   },
   category: {
     type: String,
-    required: true,
+    required: false,
     default: 'new_event',
     trim: true
   },
   date: {
     type: Date, 
-    required: [true, 'Please provide the event date']
+    required: [true, 'Please provide the event date'],
+    default: Date.now
   },
   pdfUrl: {
     type: String,
-    required: true
+    required: false,
+    default: null
   },
   cloudinaryId: {
     type: String, 
-    required: true
+    required: false,
+    default: null
   },
   createdAt: {
     type: Date,
