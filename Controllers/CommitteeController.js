@@ -1,6 +1,7 @@
-import CommitteeMember from '../Models/cec_ebf/CommitteeMember.js';
-import CommitteeTerm from '../Models/cec_ebf/CommitteeTerm.js';
-import CommitteeResponsibility from '../Models/cec_ebf/CommitteeResponsibility.js';
+import CommitteeMember from '../Models/Cec_Ebf/CommitteeMember.js';
+import CommitteeTerm from '../Models/Cec_Ebf/CommitteeTerm.js';
+import CommitteeResponsibility from '../Models/Cec_Ebf/CommitteeResponsibility.js';
+
 import { cloudinary, upload } from '../config/Cloudinary.js';
 
 // Multer upload middleware for member photo
@@ -124,7 +125,7 @@ export const createMember = async (req, res) => {
     res.status(201).json(newMember);
   } catch (err) {
     if (req.file && req.file.filename) {
-      try { await cloudinary.uploader.destroy(req.file.filename); } catch (e) {}
+      try { await cloudinary.uploader.destroy(req.file.filename); } catch (e) { }
     }
     res.status(500).json({ error: err.message || err });
   }
@@ -214,7 +215,7 @@ export const updateMember = async (req, res) => {
     // File update handling
     if (req.file) {
       if (member.cloudinaryId) {
-        try { await cloudinary.uploader.destroy(member.cloudinaryId); } catch (e) {}
+        try { await cloudinary.uploader.destroy(member.cloudinaryId); } catch (e) { }
       }
       updateData.photo = req.file.path;
       updateData.cloudinaryId = req.file.filename;
@@ -226,7 +227,7 @@ export const updateMember = async (req, res) => {
     res.status(200).json(updatedMember);
   } catch (err) {
     if (req.file && req.file.filename) {
-      try { await cloudinary.uploader.destroy(req.file.filename); } catch (e) {}
+      try { await cloudinary.uploader.destroy(req.file.filename); } catch (e) { }
     }
     res.status(500).json({ error: err.message || err });
   }
@@ -248,7 +249,7 @@ export const deleteMember = async (req, res) => {
     }
 
     if (member.cloudinaryId) {
-      try { await cloudinary.uploader.destroy(member.cloudinaryId); } catch (e) {}
+      try { await cloudinary.uploader.destroy(member.cloudinaryId); } catch (e) { }
     }
 
     await CommitteeMember.findByIdAndDelete(id);
