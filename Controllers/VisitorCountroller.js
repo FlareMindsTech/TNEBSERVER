@@ -1,5 +1,8 @@
 import { Visitor, Counter } from "../Models/Visitor.js";
 
+// Base count offset to add to the existing visitor counter
+const BASE_VISITOR_COUNT = 100000;
+
 export const trackVisitor = async (req, res) => {
     try {
         const { visitorId } = req.body;
@@ -49,7 +52,7 @@ export const trackVisitor = async (req, res) => {
 
         return res.status(200).json({
             success: true,
-            totalVisitors: counter.totalVisitors
+            totalVisitors: counter.totalVisitors + BASE_VISITOR_COUNT
         });
 
     } catch (error) {
@@ -59,3 +62,22 @@ export const trackVisitor = async (req, res) => {
         });
     }
 };
+
+export const getVisitorCount = async (req, res) => {
+    try {
+        let counter = await Counter.findOne();
+        if (!counter) {
+            counter = await Counter.create({ totalVisitors: 0 });
+        }
+        return res.status(200).json({
+            success: true,
+            totalVisitors: counter.totalVisitors + BASE_VISITOR_COUNT
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
