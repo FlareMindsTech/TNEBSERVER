@@ -30,6 +30,11 @@ const CommitteeMemberSchema = new mongoose.Schema(
       trim: true,
       default: ''
     },
+    region: {
+      type: String,
+      trim: true,
+      default: ''
+    },
     phone: {
       type: String,
       trim: true,
@@ -39,8 +44,8 @@ const CommitteeMemberSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Committee type (CEC or EBF) is required'],
       enum: {
-        values: ['CEC', 'EBF'],
-        message: 'Committee type must be either CEC or EBF'
+        values: ['CEC', 'EBF', 'REGIONAL', 'BRANCH'],
+        message: 'Committee type must be one of CEC, EBF, REGIONAL, or BRANCH'
       },
       uppercase: true,
       trim: true

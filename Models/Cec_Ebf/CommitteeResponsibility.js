@@ -6,8 +6,8 @@ const CommitteeResponsibilitySchema = new mongoose.Schema(
       type: String,
       required: [true, 'Committee type (CEC or EBF) is required'],
       enum: {
-        values: ['CEC', 'EBF'],
-        message: 'Committee type must be either CEC or EBF'
+        values: ['CEC', 'EBF', 'REGIONAL', 'BRANCH'],
+        message: 'Committee type must be one of CEC, EBF, REGIONAL, or BRANCH'
       },
       uppercase: true,
       trim: true
