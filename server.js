@@ -59,7 +59,7 @@ app.use((err, req, res, next) => {
 });
 
 app.get("/", (req, res) => {
-  res.send("welcome");
+  res.send("Welcome to TNEB Server");
 });
 
 const PORT = process.env.PORT || 5000;

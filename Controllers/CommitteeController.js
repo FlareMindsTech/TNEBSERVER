@@ -11,7 +11,7 @@ export const memberPhotoUpload = upload.single('photo');
 const parseCommitteeType = (typeParam) => {
   if (!typeParam) return null;
   const upper = typeParam.toString().toUpperCase().trim();
-  if (upper === 'CEC' || upper === 'EBF') {
+  if (['CEC', 'EBF', 'REGIONAL', 'BRANCH'].includes(upper)) {
     return upper;
   }
   return null;
@@ -31,13 +31,13 @@ export const getPublicCommitteeData = async (req, res) => {
   try {
     const committeeType = parseCommitteeType(req.params.type);
     if (!committeeType) {
-      return res.status(400).json({ message: "Invalid committee type. Must be 'CEC' or 'EBF'." });
+      return res.status(400).json({ message: "Invalid committee type. Must be one of CEC, EBF, REGIONAL, or BRANCH." });
     }
 
     // Execute parallel lean queries for high performance
     const [members, responsibilities, termDoc] = await Promise.all([
       CommitteeMember.find({ committeeType, isActive: true })
-        .select('_id photo name post designation branch phone displayOrder isQueryContact')
+        .select('_id photo name post designation branch region phone displayOrder isQueryContact')
         .sort({ displayOrder: 1, name: 1 })
         .lean(),
       CommitteeResponsibility.find({ committeeType, isActive: true })
@@ -53,7 +53,10 @@ export const getPublicCommitteeData = async (req, res) => {
     const responseData = {
       committee: {
         type: committeeType,
-        name: committeeType === 'CEC' ? 'Central Executive Committee' : 'EBF Committee'
+        name: committeeType === 'CEC' ? 'Central Executive Committee' : 
+              committeeType === 'EBF' ? 'EBF Committee' : 
+              committeeType === 'REGIONAL' ? 'Regional Secretary' : 
+              'Branch Secretary'
       },
       term: {
         currentTerm: termDoc ? termDoc.currentTerm : '',
@@ -85,10 +88,10 @@ export const createMember = async (req, res) => {
       if (req.file && req.file.filename) {
         await cloudinary.uploader.destroy(req.file.filename);
       }
-      return res.status(400).json({ message: "Invalid committee type. Must be 'CEC' or 'EBF'." });
+      return res.status(400).json({ message: "Invalid committee type. Must be one of CEC, EBF, REGIONAL, or BRANCH." });
     }
 
-    const { name, post, designation, branch, phone, displayOrder, isActive, isQueryContact } = req.body;
+    const { name, post, designation, branch, region, phone, displayOrder, isActive, isQueryContact } = req.body;
 
     if (!name || !name.trim()) {
       if (req.file && req.file.filename) await cloudinary.uploader.destroy(req.file.filename);
@@ -114,6 +117,7 @@ export const createMember = async (req, res) => {
       post: post.trim(),
       designation: designation ? designation.trim() : '',
       branch: branch ? branch.trim() : '',
+      region: region ? region.trim() : '',
       phone: phone ? phone.trim() : '',
       photo: photoUrl,
       cloudinaryId,
@@ -136,7 +140,7 @@ export const getAdminMembers = async (req, res) => {
   try {
     const committeeType = parseCommitteeType(req.params.type);
     if (!committeeType) {
-      return res.status(400).json({ message: "Invalid committee type. Must be 'CEC' or 'EBF'." });
+      return res.status(400).json({ message: "Invalid committee type. Must be one of CEC, EBF, REGIONAL, or BRANCH." });
     }
 
     const page = Math.max(1, parseInt(req.query.page) || 1);
@@ -154,6 +158,7 @@ export const getAdminMembers = async (req, res) => {
         { post: searchRegex },
         { designation: searchRegex },
         { branch: searchRegex },
+        { region: searchRegex },
         { phone: searchRegex }
       ];
     }
@@ -184,7 +189,7 @@ export const updateMember = async (req, res) => {
     const committeeType = parseCommitteeType(req.params.type);
     if (!committeeType) {
       if (req.file && req.file.filename) await cloudinary.uploader.destroy(req.file.filename);
-      return res.status(400).json({ message: "Invalid committee type. Must be 'CEC' or 'EBF'." });
+      return res.status(400).json({ message: "Invalid committee type. Must be one of CEC, EBF, REGIONAL, or BRANCH." });
     }
 
     const { id } = req.params;
@@ -195,7 +200,7 @@ export const updateMember = async (req, res) => {
       return res.status(404).json({ message: 'Committee member not found' });
     }
 
-    const { name, post, designation, branch, phone, displayOrder, isActive, isQueryContact, photo } = req.body;
+    const { name, post, designation, branch, region, phone, displayOrder, isActive, isQueryContact, photo } = req.body;
 
     if (phone && !isValidPhone(phone)) {
       if (req.file && req.file.filename) await cloudinary.uploader.destroy(req.file.filename);
@@ -207,6 +212,7 @@ export const updateMember = async (req, res) => {
     if (post !== undefined) updateData.post = post.trim();
     if (designation !== undefined) updateData.designation = designation.trim();
     if (branch !== undefined) updateData.branch = branch.trim();
+    if (region !== undefined) updateData.region = region.trim();
     if (phone !== undefined) updateData.phone = phone.trim();
     if (displayOrder !== undefined) updateData.displayOrder = Number(displayOrder);
     if (isActive !== undefined) updateData.isActive = String(isActive) === 'true' || isActive === true;
@@ -238,7 +244,7 @@ export const deleteMember = async (req, res) => {
   try {
     const committeeType = parseCommitteeType(req.params.type);
     if (!committeeType) {
-      return res.status(400).json({ message: "Invalid committee type. Must be 'CEC' or 'EBF'." });
+      return res.status(400).json({ message: "Invalid committee type. Must be one of CEC, EBF, REGIONAL, or BRANCH." });
     }
 
     const { id } = req.params;
@@ -269,7 +275,7 @@ export const getTerm = async (req, res) => {
   try {
     const committeeType = parseCommitteeType(req.params.type);
     if (!committeeType) {
-      return res.status(400).json({ message: "Invalid committee type. Must be 'CEC' or 'EBF'." });
+      return res.status(400).json({ message: "Invalid committee type. Must be one of CEC, EBF, REGIONAL, or BRANCH." });
     }
 
     let termDoc = await CommitteeTerm.findOne({ committeeType }).lean();
@@ -292,7 +298,7 @@ export const updateTerm = async (req, res) => {
   try {
     const committeeType = parseCommitteeType(req.params.type);
     if (!committeeType) {
-      return res.status(400).json({ message: "Invalid committee type. Must be 'CEC' or 'EBF'." });
+      return res.status(400).json({ message: "Invalid committee type. Must be one of CEC, EBF, REGIONAL, or BRANCH." });
     }
 
     const { currentTerm, electedDate, nextElectionDate } = req.body;
@@ -331,7 +337,7 @@ export const createResponsibility = async (req, res) => {
   try {
     const committeeType = parseCommitteeType(req.params.type);
     if (!committeeType) {
-      return res.status(400).json({ message: "Invalid committee type. Must be 'CEC' or 'EBF'." });
+      return res.status(400).json({ message: "Invalid committee type. Must be one of CEC, EBF, REGIONAL, or BRANCH." });
     }
 
     const { title, description, displayOrder, isActive } = req.body;
@@ -363,7 +369,7 @@ export const getAdminResponsibilities = async (req, res) => {
   try {
     const committeeType = parseCommitteeType(req.params.type);
     if (!committeeType) {
-      return res.status(400).json({ message: "Invalid committee type. Must be 'CEC' or 'EBF'." });
+      return res.status(400).json({ message: "Invalid committee type. Must be one of CEC, EBF, REGIONAL, or BRANCH." });
     }
 
     const responsibilities = await CommitteeResponsibility.find({ committeeType })
@@ -381,7 +387,7 @@ export const updateResponsibility = async (req, res) => {
   try {
     const committeeType = parseCommitteeType(req.params.type);
     if (!committeeType) {
-      return res.status(400).json({ message: "Invalid committee type. Must be 'CEC' or 'EBF'." });
+      return res.status(400).json({ message: "Invalid committee type. Must be one of CEC, EBF, REGIONAL, or BRANCH." });
     }
 
     const { id } = req.params;
@@ -414,7 +420,7 @@ export const deleteResponsibility = async (req, res) => {
   try {
     const committeeType = parseCommitteeType(req.params.type);
     if (!committeeType) {
-      return res.status(400).json({ message: "Invalid committee type. Must be 'CEC' or 'EBF'." });
+      return res.status(400).json({ message: "Invalid committee type. Must be one of CEC, EBF, REGIONAL, or BRANCH." });
     }
 
     const { id } = req.params;
