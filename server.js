@@ -14,6 +14,7 @@ import importantNoticeRoutes from './Routes/ImportantNoticeRoutes.js';
 import lmNumberRoutes from './Routes/LMNumberRoutes.js';
 import minnagamRoutes from './Routes/MinnagamRoutes.js';
 import committeeRoutes from './Routes/CommitteeRoutes.js';
+import boardProceedingRoutes from './Routes/BoardProceedingRoutes.js';
 
 const app = express();
 
@@ -47,6 +48,7 @@ app.use('/api/forms', formsRoutes);
 app.use('/api/important-notices', importantNoticeRoutes);
 app.use('/api/lm-numbers', lmNumberRoutes);
 app.use('/api/minnagam', minnagamRoutes);
+app.use('/api/board-proceedings', boardProceedingRoutes);
 app.use('/api', committeeRoutes);
 
 // Global error handler middleware to catch and format middleware/route errors as JSON
