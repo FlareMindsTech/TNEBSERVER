@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 const FormsSchema = new mongoose.Schema({
   type: {
     type: String,
-    enum: ['form', 'loan', 'membership'],
+    enum: ['form', 'loan', 'membership', 'wage&division', 'noc'],
     required: true,
     default: 'form'
   },
