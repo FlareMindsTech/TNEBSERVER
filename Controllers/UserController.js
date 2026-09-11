@@ -59,6 +59,7 @@ export const register = async (req, res) => {
     name,
     email,
     phone_no,
+    role,
     city,
     lm_number,
     pbo_number,
@@ -112,7 +113,7 @@ export const register = async (req, res) => {
       email: normalizedEmail,
       phone_no: normalizedPhone,
       password: hashedPassword,
-      role: 'user'
+      role: role ? role.trim() : 'user'
     };
 
     if (city) userData.city = city;
