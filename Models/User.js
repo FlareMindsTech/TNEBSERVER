@@ -51,7 +51,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['owner', 'admin', 'treasurer', 'user'],
+    enum: ['owner', 'admin', 'treasurer', 'technical admin', 'technical_admin', 'user'],
     default: 'user'
   },
   lastLoginLocation: {

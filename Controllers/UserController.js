@@ -315,7 +315,7 @@ export const adminLogin = async (req, res) => {
     }
 
     // 5. Check admin privileges
-    if (user.role !== 'admin' && user.role !== 'owner') {
+    if (user.role !== 'admin' && user.role !== 'owner' && user.role !== 'technical admin' && user.role !== 'technical_admin') {
       return res.status(403).json({
         message: 'Access denied. Admins only.'
       });

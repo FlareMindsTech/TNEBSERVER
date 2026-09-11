@@ -9,7 +9,7 @@ const lmNumberSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['owner', 'admin', 'user'],
+    enum: ['owner', 'admin', 'technical admin', 'technical_admin', 'treasurer', 'user'],
     required: true
   },
   isUsed: {
