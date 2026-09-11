@@ -20,7 +20,7 @@ const deleteFromCloudinary = async (publicId) => {
 // --- CREATE ---
 export const createBoardProceeding = async (req, res) => {
   try {
-    const { title, category, type, description } = req.body;
+    const { title, category, type, description, date } = req.body;
 
     if (!title) {
       // If file was uploaded but validation failed, cleanup Cloudinary upload
@@ -34,6 +34,7 @@ export const createBoardProceeding = async (req, res) => {
       title,
       category: category || type || "BP's & Orders", // default to "BP's & Orders"
       description: description || undefined,
+      date: date || Date.now(),
       docUrl: req.file ? req.file.path : null, // Cloudinary file URL
       cloudinaryId: req.file ? req.file.filename : null // Cloudinary public ID
     });
@@ -109,7 +110,7 @@ export const getBoardProceedingById = async (req, res) => {
 export const updateBoardProceeding = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, category, type, description } = req.body;
+    const { title, category, type, description, date } = req.body;
 
     const boardProceeding = await BoardProceeding.findById(id);
     if (!boardProceeding) {
@@ -124,6 +125,7 @@ export const updateBoardProceeding = async (req, res) => {
     if (title !== undefined) updateData.title = title;
     if (category !== undefined || type !== undefined) updateData.category = category || type;
     if (description !== undefined) updateData.description = description;
+    if (date !== undefined) updateData.date = date;
 
     // Handle new document file upload
     if (req.file) {

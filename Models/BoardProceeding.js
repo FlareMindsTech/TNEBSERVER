@@ -17,6 +17,10 @@ const BoardProceedingSchema = new mongoose.Schema(
       default: "BP's & Orders",
       trim: true
     },
+    date: {
+      type: Date,
+      default: Date.now
+    },
     description: {
       type: String,
       trim: true,
