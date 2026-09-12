@@ -15,7 +15,7 @@ router.post('/forgot-password', userCtrl.forgotPassword);
 // Bulk upload removed in favor of manual seeding script
 // router.post('/upload-lm-numbers', protect, authorize('owner'), userCtrl.uploadLMNumbers);
 
-router.get('/all', userCtrl.getAllUsers);
+router.get('/all', protect, authorize('owner', 'admin'), userCtrl.getAllUsers);
 
 router.route('/:id')
   .get(protect, userCtrl.getUserById)

@@ -9,7 +9,6 @@ const TechnicalBookSchema = new mongoose.Schema(
     },
     tag: {
       type: String,
-      maxlength: [30, 'Tag cannot exceed 30 characters'],
       trim: true,
       default: ''
     },

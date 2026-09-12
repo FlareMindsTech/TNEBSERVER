@@ -420,7 +420,7 @@ export const forgotPassword = async (req, res) => {
 /*
     @desc Get all users
     @route GET /api/users/all
-    @access Private (Owner Only)
+    @access Private (Owner/Admin)
 */
 export const getAllUsers = async (req, res) => {
     try {

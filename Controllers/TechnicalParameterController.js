@@ -63,14 +63,7 @@ export const createTechnicalParameter = async (req, res) => {
 
     const { parsedTag, parsedTags } = parseTagData(tag, tags);
 
-    // Validate 30 characters limit on tag and each item in tags
-    if (parsedTag && parsedTag.length > 30) {
-      if (req.file && req.file.filename) {
-        await deleteFromCloudinary(req.file.filename);
-      }
-      return res.status(400).json({ success: false, message: 'Tag cannot exceed 30 characters' });
-    }
-
+    // Validate 30 characters limit on each individual tag
     for (const t of parsedTags) {
       if (t.length > 30) {
         if (req.file && req.file.filename) {
@@ -78,7 +71,7 @@ export const createTechnicalParameter = async (req, res) => {
         }
         return res.status(400).json({
           success: false,
-          message: `Tag "${t}" exceeds maximum allowed length of 30 characters`
+          message: `Each tag cannot exceed 30 characters (Tag "${t}" exceeds 30 characters)`
         });
       }
     }
@@ -179,13 +172,7 @@ export const updateTechnicalParameter = async (req, res) => {
     if (tag !== undefined || tags !== undefined) {
       const { parsedTag, parsedTags } = parseTagData(tag ?? technicalParameter.tag, tags ?? technicalParameter.tags);
 
-      if (parsedTag && parsedTag.length > 30) {
-        if (req.file && req.file.filename) {
-          await deleteFromCloudinary(req.file.filename);
-        }
-        return res.status(400).json({ success: false, message: 'Tag cannot exceed 30 characters' });
-      }
-
+      // Validate 30 characters limit on each individual tag
       for (const t of parsedTags) {
         if (t.length > 30) {
           if (req.file && req.file.filename) {
@@ -193,7 +180,7 @@ export const updateTechnicalParameter = async (req, res) => {
           }
           return res.status(400).json({
             success: false,
-            message: `Tag "${t}" exceeds maximum allowed length of 30 characters`
+            message: `Each tag cannot exceed 30 characters (Tag "${t}" exceeds 30 characters)`
           });
         }
       }
