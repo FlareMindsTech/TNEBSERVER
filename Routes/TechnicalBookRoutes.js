@@ -13,10 +13,10 @@ import { authorize } from '../Middleware/roleMiddleware.js';
 const router = express.Router();
 
 // CRUD Routes for Technical Books
-router.post('/', protect, authorize('technical admin', 'owner'), technicalBookUpload, createTechnicalBook);
+router.post('/', protect, authorize('technical admin'), technicalBookUpload, createTechnicalBook);
 router.get('/', getAllTechnicalBooks);
 router.get('/:id', getTechnicalBookById);
-router.put('/:id', protect, authorize('technical admin',  'owner'), technicalBookUpload, updateTechnicalBook);
-router.delete('/:id', protect, authorize('technical admin', 'owner'), deleteTechnicalBook);
+router.put('/:id', protect, authorize('technical admin'), technicalBookUpload, updateTechnicalBook);
+router.delete('/:id', protect, authorize('technical admin'), deleteTechnicalBook);
 
 export default router;

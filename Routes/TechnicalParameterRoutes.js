@@ -13,10 +13,10 @@ import { authorize } from '../Middleware/roleMiddleware.js';
 const router = express.Router();
 
 // CRUD Routes for Technical Parameters
-router.post('/', protect, authorize('technical admin', 'owner'), technicalParameterUpload, createTechnicalParameter);
+router.post('/', protect, authorize('technical admin'), technicalParameterUpload, createTechnicalParameter);
 router.get('/', getAllTechnicalParameters);
 router.get('/:id', getTechnicalParameterById);
-router.put('/:id', protect, authorize('technical admin', 'owner'), technicalParameterUpload, updateTechnicalParameter);
-router.delete('/:id', protect, authorize('technical admin', 'owner'), deleteTechnicalParameter);
+router.put('/:id', protect, authorize('technical admin'), technicalParameterUpload, updateTechnicalParameter);
+router.delete('/:id', protect, authorize('technical admin'), deleteTechnicalParameter);
 
 export default router;
