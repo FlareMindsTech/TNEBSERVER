@@ -1,5 +1,7 @@
 import TechnicalBook from '../Models/TechnicalBook.js';
 import { cloudinary, upload } from '../config/Cloudinary.js';
+import { PDFDocument } from 'pdf-lib';
+import axios from 'axios';
 
 // Multer upload middleware for single document (accepts field name 'document')
 export const technicalBookUpload = upload.single('document');
@@ -15,6 +17,65 @@ const deleteFromCloudinary = async (publicId) => {
   } catch (err) {
     console.error('❌ Failed to delete file from Cloudinary:', err.message);
   }
+};
+
+// Helper to count PDF pages using pdf-lib
+const getPdfPageCount = async (pdfUrl) => {
+  try {
+    const response = await axios.get(pdfUrl, { responseType: 'arraybuffer' });
+    const pdfDoc = await PDFDocument.load(response.data);
+    return pdfDoc.getPageCount();
+  } catch (error) {
+    console.error('Error counting PDF pages for Technical Book:', error);
+    return 1;
+  }
+};
+
+// Helper to construct Cloudinary page JPG URLs for 3D flipbook
+const buildCloudinaryPageUrls = (publicId, pageCount) => {
+  const safePageCount = Math.max(1, Number(pageCount) || 1);
+  const pagesArray = [];
+
+  for (let i = 1; i <= safePageCount; i++) {
+    const pageUrl = cloudinary.url(publicId, {
+      resource_type: 'image',
+      type: 'upload',
+      page: i,
+      format: 'jpg',
+      secure: true
+    });
+    pagesArray.push(pageUrl);
+  }
+
+  return pagesArray;
+};
+
+// Helper to ensure existing books have flipbook pages generated
+const ensureTechnicalBookPages = async (bookDoc) => {
+  if (!bookDoc?.docUrl || !bookDoc?.cloudinaryId) {
+    return bookDoc;
+  }
+
+  const isPdf = typeof bookDoc.docUrl === 'string' && (bookDoc.docUrl.toLowerCase().includes('.pdf') || bookDoc.docUrl.toLowerCase().includes('/raw/upload/'));
+  if (!isPdf) {
+    return bookDoc;
+  }
+
+  const hasPages = Array.isArray(bookDoc.pages) && bookDoc.pages.length > 0;
+  if (hasPages) {
+    return bookDoc;
+  }
+
+  try {
+    const pageCount = await getPdfPageCount(bookDoc.docUrl);
+    const pages = buildCloudinaryPageUrls(bookDoc.cloudinaryId, pageCount);
+    bookDoc.pageCount = pageCount;
+    bookDoc.pages = pages;
+    await bookDoc.save();
+  } catch (e) {
+    console.error('Failed to generate flipbook pages for book:', bookDoc.title, e);
+  }
+  return bookDoc;
 };
 
 // Helper to parse tag and tags
@@ -69,12 +130,21 @@ export const createTechnicalBook = async (req, res) => {
       }
     }
 
+    let pages = [];
+    let pageCount = 0;
+    if (req.file && req.file.path && (req.file.path.toLowerCase().includes('.pdf') || req.file.mimetype === 'application/pdf')) {
+      pageCount = await getPdfPageCount(req.file.path);
+      pages = buildCloudinaryPageUrls(req.file.filename, pageCount);
+    }
+
     const newTechnicalBook = await TechnicalBook.create({
       title: title.trim(),
       tag: parsedTag || (parsedTags.length > 0 ? parsedTags[0] : ''),
       tags: parsedTags,
       docUrl: req.file ? req.file.path : null,
-      cloudinaryId: req.file ? req.file.filename : null
+      cloudinaryId: req.file ? req.file.filename : null,
+      pages,
+      pageCount
     });
 
     res.status(201).json({
@@ -117,6 +187,8 @@ export const getAllTechnicalBooks = async (req, res) => {
     const sortOption = { [sortBy]: order === 'asc' ? 1 : -1 };
     const technicalBooks = await TechnicalBook.find(filter).sort(sortOption);
 
+    await Promise.all(technicalBooks.map((item) => ensureTechnicalBookPages(item)));
+
     res.status(200).json(technicalBooks);
   } catch (err) {
     res.status(500).json({
@@ -130,11 +202,13 @@ export const getAllTechnicalBooks = async (req, res) => {
 export const getTechnicalBookById = async (req, res) => {
   try {
     const { id } = req.params;
-    const technicalBook = await TechnicalBook.findById(id);
+    let technicalBook = await TechnicalBook.findById(id);
 
     if (!technicalBook) {
       return res.status(404).json({ success: false, message: 'Technical Book not found' });
     }
+
+    technicalBook = await ensureTechnicalBookPages(technicalBook);
 
     res.status(200).json(technicalBook);
   } catch (err) {
@@ -190,6 +264,12 @@ export const updateTechnicalBook = async (req, res) => {
       }
       updateData.docUrl = req.file.path;
       updateData.cloudinaryId = req.file.filename;
+
+      if (req.file.path && (req.file.path.toLowerCase().includes('.pdf') || req.file.mimetype === 'application/pdf')) {
+        const pageCount = await getPdfPageCount(req.file.path);
+        updateData.pageCount = pageCount;
+        updateData.pages = buildCloudinaryPageUrls(req.file.filename, pageCount);
+      }
     }
 
     const updatedTechnicalBook = await TechnicalBook.findByIdAndUpdate(
