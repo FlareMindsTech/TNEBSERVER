@@ -1,22 +1,15 @@
 import TechnicalBook from '../Models/TechnicalBook.js';
-import { cloudinary, upload } from '../config/Cloudinary.js';
+import { upload, deleteFromBunny } from '../config/Bunny.js';
 import { PDFDocument } from 'pdf-lib';
 import axios from 'axios';
 
 // Multer upload middleware for single document (accepts field name 'document')
 export const technicalBookUpload = upload.single('document');
 
-// Helper to safely delete file from Cloudinary (attempts raw first, then image/auto)
-const deleteFromCloudinary = async (publicId) => {
-  if (!publicId) return;
-  try {
-    const result = await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
-    if (result && result.result === 'not found') {
-      await cloudinary.uploader.destroy(publicId);
-    }
-  } catch (err) {
-    console.error('❌ Failed to delete file from Cloudinary:', err.message);
-  }
+// Helper to safely delete file from Bunny
+const deleteFile = async (fileKeyOrUrl) => {
+  if (!fileKeyOrUrl) return;
+  await deleteFromBunny(fileKeyOrUrl);
 };
 
 // Helper to count PDF pages using pdf-lib
@@ -31,20 +24,13 @@ const getPdfPageCount = async (pdfUrl) => {
   }
 };
 
-// Helper to construct Cloudinary page JPG URLs for 3D flipbook
-const buildCloudinaryPageUrls = (publicId, pageCount) => {
+// Helper to construct page URLs for flipbook / viewer
+const buildPageUrls = (pdfUrl, pageCount) => {
   const safePageCount = Math.max(1, Number(pageCount) || 1);
   const pagesArray = [];
 
   for (let i = 1; i <= safePageCount; i++) {
-    const pageUrl = cloudinary.url(publicId, {
-      resource_type: 'image',
-      type: 'upload',
-      page: i,
-      format: 'jpg',
-      secure: true
-    });
-    pagesArray.push(pageUrl);
+    pagesArray.push(pdfUrl);
   }
 
   return pagesArray;
@@ -52,11 +38,11 @@ const buildCloudinaryPageUrls = (publicId, pageCount) => {
 
 // Helper to ensure existing books have flipbook pages generated
 const ensureTechnicalBookPages = async (bookDoc) => {
-  if (!bookDoc?.docUrl || !bookDoc?.cloudinaryId) {
+  if (!bookDoc?.docUrl) {
     return bookDoc;
   }
 
-  const isPdf = typeof bookDoc.docUrl === 'string' && (bookDoc.docUrl.toLowerCase().includes('.pdf') || bookDoc.docUrl.toLowerCase().includes('/raw/upload/'));
+  const isPdf = typeof bookDoc.docUrl === 'string' && (bookDoc.docUrl.toLowerCase().includes('.pdf') || bookDoc.docUrl.toLowerCase().includes('application/pdf'));
   if (!isPdf) {
     return bookDoc;
   }
@@ -68,7 +54,7 @@ const ensureTechnicalBookPages = async (bookDoc) => {
 
   try {
     const pageCount = await getPdfPageCount(bookDoc.docUrl);
-    const pages = buildCloudinaryPageUrls(bookDoc.cloudinaryId, pageCount);
+    const pages = buildPageUrls(bookDoc.docUrl, pageCount);
     bookDoc.pageCount = pageCount;
     bookDoc.pages = pages;
     await bookDoc.save();
@@ -134,7 +120,7 @@ export const createTechnicalBook = async (req, res) => {
     let pageCount = 0;
     if (req.file && req.file.path && (req.file.path.toLowerCase().includes('.pdf') || req.file.mimetype === 'application/pdf')) {
       pageCount = await getPdfPageCount(req.file.path);
-      pages = buildCloudinaryPageUrls(req.file.filename, pageCount);
+      pages = buildPageUrls(req.file.path, pageCount);
     }
 
     const newTechnicalBook = await TechnicalBook.create({
@@ -154,7 +140,7 @@ export const createTechnicalBook = async (req, res) => {
     });
   } catch (err) {
     if (req.file && req.file.filename) {
-      await deleteFromCloudinary(req.file.filename);
+      await deleteFile(req.file.filename);
     }
     res.status(500).json({
       success: false,
@@ -258,9 +244,9 @@ export const updateTechnicalBook = async (req, res) => {
 
     // Handle new document file upload
     if (req.file) {
-      // Delete old file from Cloudinary if exists
-      if (technicalBook.cloudinaryId) {
-        await deleteFromCloudinary(technicalBook.cloudinaryId);
+      // Delete old file if exists
+      if (technicalBook.cloudinaryId || technicalBook.docUrl) {
+        await deleteFile(technicalBook.cloudinaryId || technicalBook.docUrl);
       }
       updateData.docUrl = req.file.path;
       updateData.cloudinaryId = req.file.filename;
@@ -268,7 +254,7 @@ export const updateTechnicalBook = async (req, res) => {
       if (req.file.path && (req.file.path.toLowerCase().includes('.pdf') || req.file.mimetype === 'application/pdf')) {
         const pageCount = await getPdfPageCount(req.file.path);
         updateData.pageCount = pageCount;
-        updateData.pages = buildCloudinaryPageUrls(req.file.filename, pageCount);
+        updateData.pages = buildPageUrls(req.file.path, pageCount);
       }
     }
 
@@ -285,7 +271,7 @@ export const updateTechnicalBook = async (req, res) => {
     });
   } catch (err) {
     if (req.file && req.file.filename) {
-      await deleteFromCloudinary(req.file.filename);
+      await deleteFile(req.file.filename);
     }
     res.status(500).json({
       success: false,
@@ -304,9 +290,9 @@ export const deleteTechnicalBook = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Technical Book not found' });
     }
 
-    // Delete associated file from Cloudinary
-    if (technicalBook.cloudinaryId) {
-      await deleteFromCloudinary(technicalBook.cloudinaryId);
+    // Delete associated file
+    if (technicalBook.cloudinaryId || technicalBook.docUrl) {
+      await deleteFile(technicalBook.cloudinaryId || technicalBook.docUrl);
     }
 
     // Delete record from database

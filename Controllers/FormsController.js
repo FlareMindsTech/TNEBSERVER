@@ -1,5 +1,5 @@
 import Forms from '../Models/Forms.js';
-import { cloudinary, upload } from '../config/Cloudinary.js';
+import { upload, deleteFromBunny } from '../config/Bunny.js';
 
 export const formsUpload = upload.single('pdf');
 
@@ -15,18 +15,18 @@ export const createForm = async (req, res) => {
     const newForm = await Forms.create({
       title,
       type: type || 'form', // default to 'form' if type is not provided
-      pdfUrl: req.file.path, // Cloudinary URL
-      cloudinaryId: req.file.filename // Cloudinary public ID
+      pdfUrl: req.file.path, // Bunny URL
+      cloudinaryId: req.file.filename // Bunny file Key
     });
 
     res.status(201).json(newForm);
   } catch (err) {
-    // Cleanup Cloudinary upload if DB write fails
+    // Cleanup upload if DB write fails
     if (req.file && req.file.filename) {
       try {
-        await cloudinary.uploader.destroy(req.file.filename, { resource_type: 'raw' });
+        await deleteFromBunny(req.file.filename);
       } catch (cleanupErr) {
-        console.error('❌ Failed to cleanup Cloudinary file on create failure:', cleanupErr.message);
+        console.error('❌ Failed to cleanup file on create failure:', cleanupErr.message);
       }
     }
     res.status(500).json({ error: err.message || err });
@@ -71,12 +71,12 @@ export const updateForm = async (req, res) => {
 
     const form = await Forms.findById(id);
     if (!form) {
-      // Cleanup Cloudinary file if document doesn't exist
+      // Cleanup file if document doesn't exist
       if (req.file && req.file.filename) {
         try {
-          await cloudinary.uploader.destroy(req.file.filename, { resource_type: 'raw' });
+          await deleteFromBunny(req.file.filename);
         } catch (cleanupErr) {
-          console.error('❌ Failed to cleanup Cloudinary file:', cleanupErr.message);
+          console.error('❌ Failed to cleanup file:', cleanupErr.message);
         }
       }
       return res.status(404).json({ message: 'Document not found' });
@@ -86,14 +86,14 @@ export const updateForm = async (req, res) => {
     if (title !== undefined) updateData.title = title;
     if (type !== undefined) updateData.type = type;
 
-    // Handle new document file upload to Cloudinary
+    // Handle new document file upload
     if (req.file) {
-      // Delete old file from Cloudinary
-      if (form.cloudinaryId) {
+      // Delete old file
+      if (form.cloudinaryId || form.pdfUrl) {
         try {
-          await cloudinary.uploader.destroy(form.cloudinaryId, { resource_type: 'raw' });
+          await deleteFromBunny(form.cloudinaryId || form.pdfUrl);
         } catch (cleanupErr) {
-          console.error('❌ Failed to delete old file from Cloudinary:', cleanupErr.message);
+          console.error('❌ Failed to delete old file:', cleanupErr.message);
         }
       }
       updateData.pdfUrl = req.file.path;
@@ -103,12 +103,12 @@ export const updateForm = async (req, res) => {
     const updatedForm = await Forms.findByIdAndUpdate(id, updateData, { new: true });
     res.status(200).json(updatedForm);
   } catch (err) {
-    // Cleanup newly uploaded Cloudinary file if update fails
+    // Cleanup newly uploaded file if update fails
     if (req.file && req.file.filename) {
       try {
-        await cloudinary.uploader.destroy(req.file.filename, { resource_type: 'raw' });
+        await deleteFromBunny(req.file.filename);
       } catch (cleanupErr) {
-        console.error('❌ Failed to cleanup newly uploaded Cloudinary file on update failure:', cleanupErr.message);
+        console.error('❌ Failed to cleanup newly uploaded file on update failure:', cleanupErr.message);
       }
     }
     res.status(500).json({ error: err.message || err });
@@ -125,19 +125,19 @@ export const deleteForm = async (req, res) => {
       return res.status(404).json({ message: 'Document not found' });
     }
 
-    // Delete associated file from Cloudinary
-    if (form.cloudinaryId) {
+    // Delete associated file
+    if (form.cloudinaryId || form.pdfUrl) {
       try {
-        await cloudinary.uploader.destroy(form.cloudinaryId, { resource_type: 'raw' });
+        await deleteFromBunny(form.cloudinaryId || form.pdfUrl);
       } catch (cleanupErr) {
-        console.error('❌ Failed to delete file from Cloudinary on document delete:', cleanupErr.message);
+        console.error('❌ Failed to delete file on document delete:', cleanupErr.message);
       }
     }
 
     // Delete record from database
     await Forms.findByIdAndDelete(id);
 
-    res.status(200).json({ message: 'Document deleted successfully from DB and Cloudinary' });
+    res.status(200).json({ message: 'Document deleted successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

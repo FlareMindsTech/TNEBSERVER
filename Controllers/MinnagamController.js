@@ -1,5 +1,5 @@
 import Minnagam from '../Models/Minnagam.js';
-import { cloudinary } from '../config/Cloudinary.js';
+import { deleteFromBunny } from '../config/Bunny.js';
 
 export const createMinnagam = async (req, res) => {
   try {
@@ -78,8 +78,8 @@ export const updateMinnagam = async (req, res) => {
     }
 
     if (req.file) {
-      if (minnagam.document && minnagam.document.public_id) {
-        await cloudinary.uploader.destroy(minnagam.document.public_id);
+      if (minnagam.document && (minnagam.document.public_id || minnagam.document.url)) {
+        await deleteFromBunny(minnagam.document.public_id || minnagam.document.url);
       }
       minnagam.document = {
         url: req.file.path,
@@ -101,8 +101,8 @@ export const deleteMinnagam = async (req, res) => {
       return res.status(404).json({ message: "Minnagam entry not found" });
     }
 
-    if (minnagam.document && minnagam.document.public_id) {
-      await cloudinary.uploader.destroy(minnagam.document.public_id);
+    if (minnagam.document && (minnagam.document.public_id || minnagam.document.url)) {
+      await deleteFromBunny(minnagam.document.public_id || minnagam.document.url);
     }
 
     await Minnagam.findByIdAndDelete(req.params.id);

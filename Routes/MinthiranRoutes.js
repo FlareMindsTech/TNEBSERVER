@@ -7,7 +7,7 @@ import {
     deleteMinthiran,
     updateMinthiran,
 } from "../Controllers/MinthiranController.js";
-import { upload } from "../config/Cloudinary.js";
+import { upload } from "../config/Bunny.js";
 import { protect } from "../Middleware/authMiddleware.js";
 import { authorize } from "../Middleware/roleMiddleware.js";
 

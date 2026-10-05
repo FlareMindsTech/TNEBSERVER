@@ -2,7 +2,7 @@ import CommitteeMember from '../Models/Cec_Ebf/CommitteeMember.js';
 import CommitteeTerm from '../Models/Cec_Ebf/CommitteeTerm.js';
 import CommitteeResponsibility from '../Models/Cec_Ebf/CommitteeResponsibility.js';
 
-import { cloudinary, upload } from '../config/Cloudinary.js';
+import { upload, deleteFromBunny } from '../config/Bunny.js';
 
 // Multer upload middleware for member photo
 export const memberPhotoUpload = upload.single('photo');
@@ -86,7 +86,7 @@ export const createMember = async (req, res) => {
     const committeeType = parseCommitteeType(req.params.type);
     if (!committeeType) {
       if (req.file && req.file.filename) {
-        await cloudinary.uploader.destroy(req.file.filename);
+        await deleteFromBunny(req.file.filename);
       }
       return res.status(400).json({ message: "Invalid committee type. Must be one of CEC, EBF, REGIONAL, or BRANCH." });
     }
@@ -94,17 +94,17 @@ export const createMember = async (req, res) => {
     const { name, post, designation, branch, region, phone, displayOrder, isActive, isQueryContact } = req.body;
 
     if (!name || !name.trim()) {
-      if (req.file && req.file.filename) await cloudinary.uploader.destroy(req.file.filename);
+      if (req.file && req.file.filename) await deleteFromBunny(req.file.filename);
       return res.status(400).json({ message: 'Member name is required' });
     }
 
     if (!post || !post.trim()) {
-      if (req.file && req.file.filename) await cloudinary.uploader.destroy(req.file.filename);
+      if (req.file && req.file.filename) await deleteFromBunny(req.file.filename);
       return res.status(400).json({ message: 'Post / Position is required' });
     }
 
     if (phone && !isValidPhone(phone)) {
-      if (req.file && req.file.filename) await cloudinary.uploader.destroy(req.file.filename);
+      if (req.file && req.file.filename) await deleteFromBunny(req.file.filename);
       return res.status(400).json({ message: 'Invalid phone number format' });
     }
 
@@ -129,7 +129,7 @@ export const createMember = async (req, res) => {
     res.status(201).json(newMember);
   } catch (err) {
     if (req.file && req.file.filename) {
-      try { await cloudinary.uploader.destroy(req.file.filename); } catch (e) { }
+      try { await deleteFromBunny(req.file.filename); } catch (e) { }
     }
     res.status(500).json({ error: err.message || err });
   }
@@ -188,7 +188,7 @@ export const updateMember = async (req, res) => {
   try {
     const committeeType = parseCommitteeType(req.params.type);
     if (!committeeType) {
-      if (req.file && req.file.filename) await cloudinary.uploader.destroy(req.file.filename);
+      if (req.file && req.file.filename) await deleteFromBunny(req.file.filename);
       return res.status(400).json({ message: "Invalid committee type. Must be one of CEC, EBF, REGIONAL, or BRANCH." });
     }
 
@@ -196,14 +196,14 @@ export const updateMember = async (req, res) => {
     const member = await CommitteeMember.findOne({ _id: id, committeeType });
 
     if (!member) {
-      if (req.file && req.file.filename) await cloudinary.uploader.destroy(req.file.filename);
+      if (req.file && req.file.filename) await deleteFromBunny(req.file.filename);
       return res.status(404).json({ message: 'Committee member not found' });
     }
 
     const { name, post, designation, branch, region, phone, displayOrder, isActive, isQueryContact, photo } = req.body;
 
     if (phone && !isValidPhone(phone)) {
-      if (req.file && req.file.filename) await cloudinary.uploader.destroy(req.file.filename);
+      if (req.file && req.file.filename) await deleteFromBunny(req.file.filename);
       return res.status(400).json({ message: 'Invalid phone number format' });
     }
 
@@ -221,7 +221,7 @@ export const updateMember = async (req, res) => {
     // File update handling
     if (req.file) {
       if (member.cloudinaryId) {
-        try { await cloudinary.uploader.destroy(member.cloudinaryId); } catch (e) { }
+        try { await deleteFromBunny(member.cloudinaryId); } catch (e) { }
       }
       updateData.photo = req.file.path;
       updateData.cloudinaryId = req.file.filename;
@@ -233,7 +233,7 @@ export const updateMember = async (req, res) => {
     res.status(200).json(updatedMember);
   } catch (err) {
     if (req.file && req.file.filename) {
-      try { await cloudinary.uploader.destroy(req.file.filename); } catch (e) { }
+      try { await deleteFromBunny(req.file.filename); } catch (e) { }
     }
     res.status(500).json({ error: err.message || err });
   }
@@ -255,7 +255,7 @@ export const deleteMember = async (req, res) => {
     }
 
     if (member.cloudinaryId) {
-      try { await cloudinary.uploader.destroy(member.cloudinaryId); } catch (e) { }
+      try { await deleteFromBunny(member.cloudinaryId); } catch (e) { }
     }
 
     await CommitteeMember.findByIdAndDelete(id);

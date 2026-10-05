@@ -1,5 +1,5 @@
 import About from '../Models/About.js';
-import { cloudinary } from '../config/Cloudinary.js';
+import { deleteFromBunny } from '../config/Bunny.js';
 
 // Get About Page content
 export const getAbout = async (req, res) => {
@@ -31,8 +31,8 @@ export const createOrUpdateAbout = async (req, res) => {
     };
 
     if (req.file) {
-      if (about && about.cloudinaryId) {
-        await cloudinary.uploader.destroy(about.cloudinaryId);
+      if (about && (about.cloudinaryId || about.imageUrl)) {
+        await deleteFromBunny(about.cloudinaryId || about.imageUrl);
       }
       updateData.imageUrl = req.file.path;
       updateData.cloudinaryId = req.file.filename;

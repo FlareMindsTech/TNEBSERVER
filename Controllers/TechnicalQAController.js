@@ -1,20 +1,13 @@
 import TechnicalQA from '../Models/TechnicalQA.js';
-import { cloudinary, upload } from '../config/Cloudinary.js';
+import { upload, deleteFromBunny } from '../config/Bunny.js';
 
 // Multer upload middleware for single document (accepts field name 'document')
 export const technicalQAUpload = upload.single('document');
 
-// Helper to safely delete file from Cloudinary (attempts raw first, then image/auto)
-const deleteFromCloudinary = async (publicId) => {
-  if (!publicId) return;
-  try {
-    const result = await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
-    if (result && result.result === 'not found') {
-      await cloudinary.uploader.destroy(publicId);
-    }
-  } catch (err) {
-    console.error('❌ Failed to delete file from Cloudinary:', err.message);
-  }
+// Helper to safely delete file from Bunny
+const deleteFile = async (fileKeyOrUrl) => {
+  if (!fileKeyOrUrl) return;
+  await deleteFromBunny(fileKeyOrUrl);
 };
 
 // --- CREATE ---
@@ -24,7 +17,7 @@ export const createTechnicalQA = async (req, res) => {
 
     if (!title) {
       if (req.file && req.file.filename) {
-        await deleteFromCloudinary(req.file.filename);
+        await deleteFile(req.file.filename);
       }
       return res.status(400).json({ success: false, message: 'Title is required' });
     }
@@ -43,7 +36,7 @@ export const createTechnicalQA = async (req, res) => {
     });
   } catch (err) {
     if (req.file && req.file.filename) {
-      await deleteFromCloudinary(req.file.filename);
+      await deleteFile(req.file.filename);
     }
     res.status(500).json({
       success: false,
@@ -105,7 +98,7 @@ export const updateTechnicalQA = async (req, res) => {
     const technicalQA = await TechnicalQA.findById(id);
     if (!technicalQA) {
       if (req.file && req.file.filename) {
-        await deleteFromCloudinary(req.file.filename);
+        await deleteFile(req.file.filename);
       }
       return res.status(404).json({ success: false, message: 'Technical Q&A not found' });
     }
@@ -118,7 +111,7 @@ export const updateTechnicalQA = async (req, res) => {
     if (req.file) {
       // Delete old file from Cloudinary if exists
       if (technicalQA.cloudinaryId) {
-        await deleteFromCloudinary(technicalQA.cloudinaryId);
+        await deleteFile(technicalQA.cloudinaryId);
       }
       updateData.docUrl = req.file.path;
       updateData.cloudinaryId = req.file.filename;
@@ -137,7 +130,7 @@ export const updateTechnicalQA = async (req, res) => {
     });
   } catch (err) {
     if (req.file && req.file.filename) {
-      await deleteFromCloudinary(req.file.filename);
+      await deleteFile(req.file.filename);
     }
     res.status(500).json({
       success: false,
@@ -158,7 +151,7 @@ export const deleteTechnicalQA = async (req, res) => {
 
     // Delete associated file from Cloudinary
     if (technicalQA.cloudinaryId) {
-      await deleteFromCloudinary(technicalQA.cloudinaryId);
+      await deleteFile(technicalQA.cloudinaryId);
     }
 
     // Delete record from database

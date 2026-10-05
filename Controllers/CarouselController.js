@@ -1,5 +1,5 @@
 import Carousel from '../Models/Carousel.js';
-import { cloudinary } from '../config/Cloudinary.js';
+import { deleteFromBunny } from '../config/Bunny.js';
 
 //create
 export const createCarousel = async (req, res) => {
@@ -44,15 +44,15 @@ export const updateCarousel = async (req, res) => {
     if (req.body.subtitle !== undefined) updateData.subtitle = req.body.subtitle;
 
     if (req.file) {
-      //Delete the old image from Cloudinary
-      if (oldCarousel.cloudinaryId) {
-        await cloudinary.uploader.destroy(oldCarousel.cloudinaryId);
+      // Delete the old image from Bunny
+      if (oldCarousel.cloudinaryId || oldCarousel.imageUrl) {
+        await deleteFromBunny(oldCarousel.cloudinaryId || oldCarousel.imageUrl);
       }
       updateData.imageUrl = req.file.path;
       updateData.cloudinaryId = req.file.filename;
     }
 
-    //Update with the new info
+    // Update with the new info
     const updatedCarousel = await Carousel.findByIdAndUpdate(
       req.params.id, 
       updateData, 
@@ -74,7 +74,9 @@ export const deleteCarousel = async (req, res) => {
     const carousel = await Carousel.findById(req.params.id);
     if (!carousel) return res.status(404).json({ error: 'Not found' });
 
-    await cloudinary.uploader.destroy(carousel.cloudinaryId);
+    if (carousel.cloudinaryId || carousel.imageUrl) {
+      await deleteFromBunny(carousel.cloudinaryId || carousel.imageUrl);
+    }
     await Carousel.findByIdAndDelete(req.params.id);
 
     res.json({ message: 'Deleted successfully' });

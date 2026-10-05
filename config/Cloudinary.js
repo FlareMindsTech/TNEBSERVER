@@ -1,48 +1,13 @@
-import { v2 as cloudinary } from 'cloudinary';
-import { CloudinaryStorage } from 'multer-storage-cloudinary';
-import multer from 'multer';
-import dotenv from 'dotenv';
-
-dotenv.config();
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY || process.env.CLOUDINARY_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET || process.env.CLOUDINARY_SECRET
-});
-
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    resource_type: (req, file) => {
-      if (file.originalname.match(/\.(pdf|doc|docx|xls|xlsx|txt)$/i)) {
-        return 'raw';
-      }
-      return 'auto';
-    },
-    public_id: (req, file) => {
-      const sanitizedName = file.originalname
-        .split('.')
-        .slice(0, -1)
-        .join('.')
-        .replace(/[^a-zA-Z0-9-_]/g, '_');
-      const extension = file.originalname.split('.').pop();
-      return `${Date.now()}-${sanitizedName}.${extension}`;
-    },
-  },
-});
-
-
-const upload = multer({ storage: storage });
-
-const uploadCarousel = multer({
-  storage: storage,
-  limits: { fileSize: 20 * 1024 * 1024 } // 20MB limit
-});
-
-const uploadGallery = multer({
-  storage: storage,
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
-});
-
-export { cloudinary, upload, uploadCarousel, uploadGallery };
+/**
+ * Cloudinary adapter redirecting to Bunny.net storage & CDN
+ */
+export {
+  upload,
+  uploadCarousel,
+  uploadGallery,
+  uploadDocument,
+  uploadToBunny,
+  deleteFromBunny,
+  cloudinary,
+  default
+} from './Bunny.js';

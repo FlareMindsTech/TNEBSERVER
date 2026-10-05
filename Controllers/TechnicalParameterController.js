@@ -1,20 +1,13 @@
 import TechnicalParameter from '../Models/TechnicalParameter.js';
-import { cloudinary, upload } from '../config/Cloudinary.js';
+import { upload, deleteFromBunny } from '../config/Bunny.js';
 
 // Multer upload middleware for single document (accepts field name 'document')
 export const technicalParameterUpload = upload.single('document');
 
-// Helper to safely delete file from Cloudinary (attempts raw first, then image/auto)
-const deleteFromCloudinary = async (publicId) => {
-  if (!publicId) return;
-  try {
-    const result = await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
-    if (result && result.result === 'not found') {
-      await cloudinary.uploader.destroy(publicId);
-    }
-  } catch (err) {
-    console.error('❌ Failed to delete file from Cloudinary:', err.message);
-  }
+// Helper to safely delete file from Bunny
+const deleteFile = async (fileKeyOrUrl) => {
+  if (!fileKeyOrUrl) return;
+  await deleteFromBunny(fileKeyOrUrl);
 };
 
 // Helper to parse tag and tags
@@ -49,14 +42,14 @@ export const createTechnicalParameter = async (req, res) => {
 
     if (!title || !title.trim()) {
       if (req.file && req.file.filename) {
-        await deleteFromCloudinary(req.file.filename);
+        await deleteFile(req.file.filename);
       }
       return res.status(400).json({ success: false, message: 'Title is required' });
     }
 
     if (!category || !category.trim()) {
       if (req.file && req.file.filename) {
-        await deleteFromCloudinary(req.file.filename);
+        await deleteFile(req.file.filename);
       }
       return res.status(400).json({ success: false, message: 'Category is required' });
     }
@@ -67,7 +60,7 @@ export const createTechnicalParameter = async (req, res) => {
     for (const t of parsedTags) {
       if (t.length > 30) {
         if (req.file && req.file.filename) {
-          await deleteFromCloudinary(req.file.filename);
+          await deleteFile(req.file.filename);
         }
         return res.status(400).json({
           success: false,
@@ -92,7 +85,7 @@ export const createTechnicalParameter = async (req, res) => {
     });
   } catch (err) {
     if (req.file && req.file.filename) {
-      await deleteFromCloudinary(req.file.filename);
+      await deleteFile(req.file.filename);
     }
     res.status(500).json({
       success: false,
@@ -160,7 +153,7 @@ export const updateTechnicalParameter = async (req, res) => {
     const technicalParameter = await TechnicalParameter.findById(id);
     if (!technicalParameter) {
       if (req.file && req.file.filename) {
-        await deleteFromCloudinary(req.file.filename);
+        await deleteFile(req.file.filename);
       }
       return res.status(404).json({ success: false, message: 'Technical Parameter not found' });
     }
@@ -176,7 +169,7 @@ export const updateTechnicalParameter = async (req, res) => {
       for (const t of parsedTags) {
         if (t.length > 30) {
           if (req.file && req.file.filename) {
-            await deleteFromCloudinary(req.file.filename);
+            await deleteFile(req.file.filename);
           }
           return res.status(400).json({
             success: false,
@@ -193,7 +186,7 @@ export const updateTechnicalParameter = async (req, res) => {
     if (req.file) {
       // Delete old file from Cloudinary if exists
       if (technicalParameter.cloudinaryId) {
-        await deleteFromCloudinary(technicalParameter.cloudinaryId);
+        await deleteFile(technicalParameter.cloudinaryId);
       }
       updateData.docUrl = req.file.path;
       updateData.cloudinaryId = req.file.filename;
@@ -212,7 +205,7 @@ export const updateTechnicalParameter = async (req, res) => {
     });
   } catch (err) {
     if (req.file && req.file.filename) {
-      await deleteFromCloudinary(req.file.filename);
+      await deleteFile(req.file.filename);
     }
     res.status(500).json({
       success: false,
@@ -233,7 +226,7 @@ export const deleteTechnicalParameter = async (req, res) => {
 
     // Delete associated file from Cloudinary
     if (technicalParameter.cloudinaryId) {
-      await deleteFromCloudinary(technicalParameter.cloudinaryId);
+      await deleteFile(technicalParameter.cloudinaryId);
     }
 
     // Delete record from database

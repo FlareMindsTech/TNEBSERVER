@@ -1,8 +1,9 @@
 import ImportantNotice from '../Models/ImportantNotice.js';
-import { cloudinary, upload } from '../config/Cloudinary.js';
+import { upload, deleteFromBunny } from '../config/Bunny.js';
 
 // Middleware for uploading single document/file
 export const noticeUpload = upload.single('document');
+export const importantNoticeUpload = upload.single('document');
 
 // --- CREATE ---
 export const createNotice = async (req, res) => {
@@ -13,18 +14,18 @@ export const createNotice = async (req, res) => {
       Notice_title,
       Type,
       date: date || undefined, // fallback to schema default (Date.now) if not provided
-      docUrl: req.file ? req.file.path : null, // Cloudinary URL
-      cloudinaryId: req.file ? req.file.filename : null // Cloudinary public ID
+      docUrl: req.file ? req.file.path : null, // Bunny URL
+      cloudinaryId: req.file ? req.file.filename : null // Bunny file Key
     });
 
     res.status(201).json(newNotice);
   } catch (err) {
-    // Cleanup Cloudinary upload if DB write fails
+    // Cleanup upload if DB write fails
     if (req.file && req.file.filename) {
       try {
-        await cloudinary.uploader.destroy(req.file.filename, { resource_type: 'raw' });
+        await deleteFromBunny(req.file.filename);
       } catch (cleanupErr) {
-        console.error('❌ Failed to cleanup Cloudinary file on create failure:', cleanupErr.message);
+        console.error('❌ Failed to cleanup file on create failure:', cleanupErr.message);
       }
     }
     res.status(500).json({ error: err.message || err });
@@ -69,12 +70,12 @@ export const updateNotice = async (req, res) => {
 
     const notice = await ImportantNotice.findById(id);
     if (!notice) {
-      // Cleanup Cloudinary file if notice doesn't exist
+      // Cleanup file if notice doesn't exist
       if (req.file && req.file.filename) {
         try {
-          await cloudinary.uploader.destroy(req.file.filename, { resource_type: 'raw' });
+          await deleteFromBunny(req.file.filename);
         } catch (cleanupErr) {
-          console.error('❌ Failed to cleanup Cloudinary file:', cleanupErr.message);
+          console.error('❌ Failed to cleanup file:', cleanupErr.message);
         }
       }
       return res.status(404).json({ message: 'Notice not found' });
@@ -85,14 +86,14 @@ export const updateNotice = async (req, res) => {
     if (Type !== undefined) updateData.Type = Type;
     if (date !== undefined) updateData.date = date;
 
-    // Handle new document file upload to Cloudinary
+    // Handle new document file upload
     if (req.file) {
-      // Delete old file from Cloudinary
-      if (notice.cloudinaryId) {
+      // Delete old file
+      if (notice.cloudinaryId || notice.docUrl) {
         try {
-          await cloudinary.uploader.destroy(notice.cloudinaryId, { resource_type: 'raw' });
+          await deleteFromBunny(notice.cloudinaryId || notice.docUrl);
         } catch (cleanupErr) {
-          console.error('❌ Failed to delete old file from Cloudinary:', cleanupErr.message);
+          console.error('❌ Failed to delete old file:', cleanupErr.message);
         }
       }
       updateData.docUrl = req.file.path;
@@ -102,12 +103,12 @@ export const updateNotice = async (req, res) => {
     const updatedNotice = await ImportantNotice.findByIdAndUpdate(id, updateData, { new: true });
     res.status(200).json(updatedNotice);
   } catch (err) {
-    // Cleanup newly uploaded Cloudinary file if update fails
+    // Cleanup newly uploaded file if update fails
     if (req.file && req.file.filename) {
       try {
-        await cloudinary.uploader.destroy(req.file.filename, { resource_type: 'raw' });
+        await deleteFromBunny(req.file.filename);
       } catch (cleanupErr) {
-        console.error('❌ Failed to cleanup newly uploaded Cloudinary file on update failure:', cleanupErr.message);
+        console.error('❌ Failed to cleanup newly uploaded file on update failure:', cleanupErr.message);
       }
     }
     res.status(500).json({ error: err.message || err });
@@ -124,19 +125,19 @@ export const deleteNotice = async (req, res) => {
       return res.status(404).json({ message: 'Notice not found' });
     }
 
-    // Delete associated file from Cloudinary
-    if (notice.cloudinaryId) {
+    // Delete associated file
+    if (notice.cloudinaryId || notice.docUrl) {
       try {
-        await cloudinary.uploader.destroy(notice.cloudinaryId, { resource_type: 'raw' });
+        await deleteFromBunny(notice.cloudinaryId || notice.docUrl);
       } catch (cleanupErr) {
-        console.error('❌ Failed to delete file from Cloudinary on notice delete:', cleanupErr.message);
+        console.error('❌ Failed to delete file on notice delete:', cleanupErr.message);
       }
     }
 
     // Delete record from database
     await ImportantNotice.findByIdAndDelete(id);
 
-    res.status(200).json({ message: 'Notice deleted successfully from DB and Cloudinary' });
+    res.status(200).json({ message: 'Notice deleted successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

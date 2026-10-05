@@ -1,5 +1,5 @@
 import Gallery from "../Models/Gallery.js";
-import { cloudinary } from "../config/Cloudinary.js";
+import { deleteFromBunny } from "../config/Bunny.js";
 
 /* ================= CREATE ================= */
 
@@ -123,12 +123,11 @@ export const deleteGalleryImage = async (req, res) => {
 
         const image = gallery.images[imageIndex];
 
-        // Delete from Cloudinary
+        // Delete from Bunny
         try {
-            await cloudinary.uploader.destroy(image.public_id);
-        } catch (cloudinaryError) {
-            console.error("Cloudinary deletion error:", cloudinaryError);
-            // Continue even if Cloudinary deletion fails
+            await deleteFromBunny(image.public_id || image.url);
+        } catch (bunnyError) {
+            console.error("Bunny deletion error:", bunnyError);
         }
 
         // Remove from array
@@ -155,7 +154,7 @@ export const deleteGallery = async (req, res) => {
 
         await Promise.all(
             gallery.images.map((img) =>
-                cloudinary.uploader.destroy(img.public_id)
+                deleteFromBunny(img.public_id || img.url)
             )
         );
 

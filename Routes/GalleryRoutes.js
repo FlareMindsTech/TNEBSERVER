@@ -8,7 +8,7 @@ import {
     deleteGalleryImage
 } from "../Controllers/GalleryController.js";
 
-import { uploadGallery } from "../config/Cloudinary.js";
+import { uploadGallery } from "../config/Bunny.js";
 import { protect } from "../Middleware/authMiddleware.js";
 import { authorize } from "../Middleware/roleMiddleware.js";
 

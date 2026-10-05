@@ -1,56 +1,13 @@
 import Event from '../Models/Event.js';
-import { cloudinary } from '../config/Cloudinary.js';
+import { deleteFromBunny } from '../config/Bunny.js';
 
-// Helper to extract Cloudinary public ID from URL if needed
-const getPublicIdFromUrl = (url) => {
-  if (!url || typeof url !== 'string') return null;
-  try {
-    const parts = url.split('/upload/');
-    if (parts.length > 1) {
-      let afterUpload = parts[1];
-      // Strip version number like v1234567890/
-      afterUpload = afterUpload.replace(/^v\d+\//, '');
-      return afterUpload;
-    }
-  } catch (err) {
-    console.warn('[Cloudinary] Error parsing URL publicId:', err.message);
-  }
-  return null;
-};
-
-// Safe helper to destroy Cloudinary assets across all resource types without throwing uncaught errors
-const safeDestroyCloudinary = async (publicIdOrUrl) => {
+// Safe helper to destroy assets without throwing uncaught errors
+const safeDeleteFile = async (publicIdOrUrl) => {
   if (!publicIdOrUrl) return;
-
-  let publicId = publicIdOrUrl;
-  if (typeof publicId === 'string' && (publicId.startsWith('http://') || publicId.startsWith('https://'))) {
-    publicId = getPublicIdFromUrl(publicIdOrUrl) || publicId;
-  }
-
-  // 1. Try destroying as raw file (for PDF, docx, etc.)
   try {
-    await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+    await deleteFromBunny(publicIdOrUrl);
   } catch (err) {
-    console.warn(`[Cloudinary] Raw destroy failed for ${publicId}:`, err.message);
-  }
-
-  // 2. Try destroying as image
-  try {
-    await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
-  } catch (err) {
-    console.warn(`[Cloudinary] Image destroy failed for ${publicId}:`, err.message);
-  }
-
-  // 3. Try image destroy without file extension if extension was part of publicId
-  if (typeof publicId === 'string' && publicId.includes('.')) {
-    const withoutExt = publicId.substring(0, publicId.lastIndexOf('.'));
-    if (withoutExt) {
-      try {
-        await cloudinary.uploader.destroy(withoutExt, { resource_type: 'image' });
-      } catch (err) {
-        // Silently continue
-      }
-    }
+    console.warn(`[Bunny] Delete failed for ${publicIdOrUrl}:`, err.message);
   }
 };
 
@@ -73,7 +30,7 @@ const enforceMaxTenEvents = async (category) => {
         // 1. Delete the attached file from Cloudinary
         const targetId = oldEvent.cloudinaryId || oldEvent.pdfUrl;
         if (targetId) {
-          await safeDestroyCloudinary(targetId);
+          await safeDeleteFile(targetId);
         }
 
         // 2. Delete the record from MongoDB
@@ -98,7 +55,7 @@ export const createEvent = async (req, res) => {
     // Validate required fields
     if (!title || !title.trim()) {
       if (req.file?.filename) {
-        await safeDestroyCloudinary(req.file.filename);
+        await safeDeleteFile(req.file.filename);
       }
       return res.status(400).json({ message: 'Event title is required' });
     }
@@ -127,7 +84,7 @@ export const createEvent = async (req, res) => {
     console.error('❌ Error creating event:', err);
     // Cleanup newly uploaded file on failure to prevent orphaned files in Cloudinary
     if (req.file?.filename) {
-      await safeDestroyCloudinary(req.file.filename);
+      await safeDeleteFile(req.file.filename);
     }
     res.status(500).json({ 
       message: err.message || 'Failed to create event', 
@@ -175,7 +132,7 @@ export const updateEvent = async (req, res) => {
     const event = await Event.findById(id);
     if (!event) {
       if (req.file?.filename) {
-        await safeDestroyCloudinary(req.file.filename);
+        await safeDeleteFile(req.file.filename);
       }
       return res.status(404).json({ message: 'Event not found' });
     }
@@ -190,7 +147,7 @@ export const updateEvent = async (req, res) => {
       // Replace existing file in Cloudinary safely
       const oldFile = event.cloudinaryId || event.pdfUrl;
       if (oldFile) {
-        await safeDestroyCloudinary(oldFile);
+        await safeDeleteFile(oldFile);
       }
       updateData.pdfUrl = req.file.path;
       updateData.cloudinaryId = req.file.filename;
@@ -204,7 +161,7 @@ export const updateEvent = async (req, res) => {
   } catch (err) {
     console.error('❌ Error updating event:', err);
     if (req.file?.filename) {
-      await safeDestroyCloudinary(req.file.filename);
+      await safeDeleteFile(req.file.filename);
     }
     res.status(500).json({ 
       message: err.message || 'Failed to update event', 
@@ -224,7 +181,7 @@ export const deleteEvent = async (req, res) => {
     // 1. Remove file from Cloudinary safely
     const targetFile = event.cloudinaryId || event.pdfUrl;
     if (targetFile) {
-      await safeDestroyCloudinary(targetFile);
+      await safeDeleteFile(targetFile);
     }
 
     // 2. Remove from MongoDB

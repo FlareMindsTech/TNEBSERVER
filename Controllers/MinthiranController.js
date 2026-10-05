@@ -1,5 +1,5 @@
 import Minthiran from "../Models/Minthiran.js";
-import { cloudinary } from "../config/Cloudinary.js";
+import { deleteFromBunny } from "../config/Bunny.js";
 import { PDFDocument } from 'pdf-lib';
 import axios from 'axios';
 
@@ -14,26 +14,20 @@ const getPdfPageCount = async (pdfUrl) => {
     }
 };
 
-const buildCloudinaryPageUrls = (publicId, pageCount) => {
+const buildPageUrls = (pdfUrl, pageCount) => {
     const safePageCount = Math.max(1, Number(pageCount) || 1);
     const pagesArray = [];
 
+    // For Bunny / standard CDN URLs, provide the PDF URL directly
     for (let i = 1; i <= safePageCount; i++) {
-        const pageUrl = cloudinary.url(publicId, {
-            resource_type: 'image',
-            type: 'upload',
-            page: i,
-            format: 'jpg',
-            secure: true
-        });
-        pagesArray.push(pageUrl);
+        pagesArray.push(pdfUrl);
     }
 
     return pagesArray;
 };
 
 const ensureMinthiranPages = async (minthiranDoc) => {
-    if (!minthiranDoc?.pdf?.url || !minthiranDoc?.pdf?.public_id) {
+    if (!minthiranDoc?.pdf?.url) {
         return minthiranDoc;
     }
 
@@ -43,7 +37,7 @@ const ensureMinthiranPages = async (minthiranDoc) => {
     }
 
     const pageCount = await getPdfPageCount(minthiranDoc.pdf.url);
-    minthiranDoc.pdf.pages = buildCloudinaryPageUrls(minthiranDoc.pdf.public_id, pageCount);
+    minthiranDoc.pdf.pages = buildPageUrls(minthiranDoc.pdf.url, pageCount);
     await minthiranDoc.save();
     return minthiranDoc;
 };
@@ -66,7 +60,7 @@ export const createMinthiran = async (req, res) => {
             pageCount = await getPdfPageCount(pdfUrl);
         }
 
-        const pagesArray = buildCloudinaryPageUrls(publicId, pageCount);
+        const pagesArray = buildPageUrls(pdfUrl, pageCount);
 
         const newMinthiran = new Minthiran({
             year,
@@ -141,7 +135,9 @@ export const deleteMinthiran = async (req, res) => {
             return res.status(404).json({ message: "Minthiran entry not found" });
         }
 
-        await cloudinary.uploader.destroy(minthiran.pdf.public_id, { resource_type: 'raw' });
+        if (minthiran.pdf?.public_id || minthiran.pdf?.url) {
+            await deleteFromBunny(minthiran.pdf.public_id || minthiran.pdf.url);
+        }
 
         await Minthiran.findByIdAndDelete(req.params.id);
         res.status(200).json({ message: "Minthiran entry and PDF deleted successfully" });
@@ -176,9 +172,9 @@ export const updateMinthiran = async (req, res) => {
 
         // If a new file is uploaded
         if (req.file) {
-            // Delete old file from Cloudinary
-            if (minthiran.pdf && minthiran.pdf.public_id) {
-                await cloudinary.uploader.destroy(minthiran.pdf.public_id, { resource_type: 'raw' }).catch(() => { });
+            // Delete old file from Bunny
+            if (minthiran.pdf?.public_id || minthiran.pdf?.url) {
+                await deleteFromBunny(minthiran.pdf.public_id || minthiran.pdf.url);
             }
 
             const pdfUrl = req.file.path;
@@ -190,7 +186,7 @@ export const updateMinthiran = async (req, res) => {
                 pageCount = await getPdfPageCount(pdfUrl);
             }
 
-            const pagesArray = buildCloudinaryPageUrls(publicId, pageCount);
+            const pagesArray = buildPageUrls(pdfUrl, pageCount);
 
             // Set new file data
             minthiran.pdf = {
