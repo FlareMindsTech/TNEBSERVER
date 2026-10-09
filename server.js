@@ -1,28 +1,80 @@
-import express from 'express'
-import mongoose from 'mongoose'
-import dotenv from "dotenv"
-import cors from "cors"
-  
-dotenv.config() 
+import 'dotenv/config'; // Modern way to load .env
+import express from 'express';
+import mongoose from 'mongoose';
+import cors from 'cors';
+import eventRoutes from './Routes/EventRoutes.js';
+import carouselRoutes from './Routes/CarouselRoutes.js';
+import userRoutes from './Routes/UserRoutes.js';
+import galleryRoutes from './Routes/GalleryRoutes.js';
+import minthiranRoutes from './Routes/MinthiranRoutes.js';
+import visitorRoutes from './Routes/VisitorRoutes.js';
+import aboutRoutes from './Routes/AboutRoutes.js';
+import formsRoutes from './Routes/FormsRoutes.js';
+import importantNoticeRoutes from './Routes/ImportantNoticeRoutes.js';
+import lmNumberRoutes from './Routes/LMNumberRoutes.js';
+import minnagamRoutes from './Routes/MinnagamRoutes.js';
+import committeeRoutes from './Routes/CommitteeRoutes.js';
+import boardProceedingRoutes from './Routes/BoardProceedingRoutes.js';
+import actRegulationRoutes from './Routes/ActRegulationRoutes.js';
+import distributionInstructionRoutes from './Routes/DistributionInstructionRoutes.js';
+import technicalQARoutes from './Routes/TechnicalQARoutes.js';
+import technicalParameterRoutes from './Routes/TechnicalParameterRoutes.js';
+import technicalBookRoutes from './Routes/TechnicalBookRoutes.js';
 
-const app= express();
-app.use(cors())
+const app = express();
+
+app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({extended:true}));
-mongoose.set('strictQuery', false);
-mongoose.connect(process.env.MONGO_URI)
-.then(() => console.log('Connected to MongoDB...'))
-.catch(err => console.error('Could not connect to MongoDB... '+err.message));
-  
-import { protect } from './middleware/authMiddleware.js';
+app.use(express.urlencoded({ extended: true }));
 
-app.get("/",(req,res)=>{
-    res.send("Hello world")
-})
+// Serve local upload files statically
+app.use('/uploads', express.static('uploads'));
 
-app.get("/protected", protect, (req, res) => {
-    res.send(`Hello ${req.user.id || 'User'}, you are authorized!`);
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log('✅ Connected to MongoDB');
+  } catch (err) {
+    console.error('❌ Connection Error:', err.message);
+    process.exit(1);
+  }
+};
+
+connectDB();
+
+app.use('/api/events', eventRoutes);
+app.use('/api/carousel', carouselRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/gallery', galleryRoutes);
+app.use('/api/minthiran', minthiranRoutes);
+app.use('/api/visitors', visitorRoutes);
+app.use('/api/about', aboutRoutes);
+app.use('/api/forms', formsRoutes);
+app.use('/api/important-notices', importantNoticeRoutes);
+app.use('/api/lm-numbers', lmNumberRoutes);
+app.use('/api/minnagam', minnagamRoutes);
+app.use('/api/board-proceedings', boardProceedingRoutes);
+app.use('/api/act-regulations', actRegulationRoutes);
+app.use('/api/distribution-instructions', distributionInstructionRoutes);
+app.use('/api/technical-qa', technicalQARoutes);
+app.use('/api/technical-parameters', technicalParameterRoutes);
+app.use('/api/technical-books', technicalBookRoutes);
+app.use('/api', committeeRoutes);
+
+// Global error handler middleware to catch and format middleware/route errors as JSON
+app.use((err, req, res, next) => {
+  console.error("❌ Global Error Handler Caught:", err);
+  res.status(err.status || 500).json({
+    message: err.message || "An unexpected error occurred",
+    error: err.toString() || err
+  });
 });
 
-const PORT = process.env.PORT || 7800;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.get("/", (req, res) => {
+  res.send("Welcome to TNEB Server");
+});
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
