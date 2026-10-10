@@ -67,8 +67,8 @@ export const createEvent = async (req, res) => {
       description: description ? description.trim() : '',
       date: date || new Date(),
       category: eventCategory,
-      pdfUrl: req.file ? req.file.path : null,
-      cloudinaryId: req.file ? req.file.filename : null
+      pdfUrl: req.file ? req.file.path : (req.body.pdfUrl || req.body.docUrl || req.body.pdf || req.body.link || null),
+      cloudinaryId: req.file ? req.file.filename : (req.body.cloudinaryId || null)
     });
 
     // Automatically enforce max 10 limit (deletes oldest events & files beyond 10)
