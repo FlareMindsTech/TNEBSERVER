@@ -21,6 +21,7 @@ import technicalQARoutes from './Routes/TechnicalQARoutes.js';
 import technicalParameterRoutes from './Routes/TechnicalParameterRoutes.js';
 import technicalBookRoutes from './Routes/TechnicalBookRoutes.js';
 import enrollmentRoutes from './Routes/enrollmentRoutes.js';
+import grievanceRoutes from './Routes/GrievanceRoutes.js';
 
 const app = express();
 
@@ -62,6 +63,8 @@ app.use('/api/technical-parameters', technicalParameterRoutes);
 app.use('/api/technical-books', technicalBookRoutes);
 app.use('/api', committeeRoutes);
 app.use('/api/enroll', enrollmentRoutes);
+app.use('/api/grievances', grievanceRoutes);
+
 
 // Global error handler middleware to catch and format middleware/route errors as JSON
 app.use((err, req, res, next) => {

@@ -7,7 +7,7 @@ dotenv.config();
 
 const STORAGE_ZONE = process.env.BUNNY_STORAGE_ZONE_NAME || 'tneb-storage';
 const ACCESS_KEY = process.env.BUNNY_STORAGE_API_KEY;
-const STORAGE_HOST = process.env.BUNNY_STORAGE_HOSTNAME || 'storage.bunnycdn.com';
+const STORAGE_HOST = process.env.BUNNY_STORAGE_HOSTNAME || 'sg.storage.bunnycdn.com';
 const CDN_URL = (process.env.BUNNY_CDN_URL || '').replace(/\/$/, '');
 
 /**
@@ -158,7 +158,7 @@ export const uploadToBunny = async (buffer, originalname, folder = 'uploads', mi
  * @param {string} fileKeyOrUrl
  */
 export const deleteFromBunny = async (fileKeyOrUrl) => {
-  if (!fileKeyOrUrl || typeof fileKeyOrUrl !== 'string') return;
+  if (!fileKeyOrUrl || typeof fileKeyOrUrl !== 'string') return false;
 
   let cleanKey = fileKeyOrUrl.trim();
 
@@ -177,7 +177,13 @@ export const deleteFromBunny = async (fileKeyOrUrl) => {
 
   cleanKey = cleanKey.replace(/^\/+/, '');
 
-  if (!cleanKey) return;
+  try {
+    cleanKey = decodeURIComponent(cleanKey);
+  } catch {
+    // Keep cleanKey as-is if decoding fails
+  }
+
+  if (!cleanKey) return false;
 
   const endpoint = `https://${STORAGE_HOST}/${STORAGE_ZONE}/${cleanKey}`;
 
@@ -187,9 +193,15 @@ export const deleteFromBunny = async (fileKeyOrUrl) => {
         AccessKey: ACCESS_KEY,
       },
     });
+    console.log(`✅ Deleted file from Bunny.net storage: ${cleanKey}`);
+    return true;
   } catch (error) {
-    if (error.response?.status !== 404) {
+    if (error.response?.status === 404) {
+      console.log(`ℹ️ File already removed or not found on Bunny storage: ${cleanKey}`);
+      return true;
+    } else {
       console.warn('⚠️ Warning: Failed to delete file from Bunny.net:', error.response?.data || error.message);
+      return false;
     }
   }
 };
@@ -204,6 +216,7 @@ export const bunnyStorage = new BunnyStorageEngine({ folder: 'uploads' });
 export const bunnyCarouselStorage = new BunnyStorageEngine({ folder: 'carousels' });
 export const bunnyGalleryStorage = new BunnyStorageEngine({ folder: 'gallery' });
 export const bunnyDocumentsStorage = new BunnyStorageEngine({ folder: 'documents' });
+export const bunnyGrievanceStorage = new BunnyStorageEngine({ folder: 'grievances' });
 
 // Multer Upload Middlewares
 export const upload = multer({
@@ -230,6 +243,21 @@ export const uploadDocument = multer({
   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
 });
 
+// Grievance file upload: 1 file, Max 10MB, supported documents & images
+export const uploadGrievance = multer({
+  storage: bunnyGrievanceStorage,
+  fileFilter: (req, file, cb) => {
+    const allowedExtensions = /jpeg|jpg|png|webp|gif|pdf|doc|docx|xls|xlsx|ppt|pptx|txt|csv/i;
+    const ext = path.extname(file.originalname || '').toLowerCase().replace('.', '');
+    if (!ext || allowedExtensions.test(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Unsupported file type: .${ext}. Please upload a supported image or document file.`));
+    }
+  },
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max limit
+});
+
 /**
  * Backward compatibility shim for Cloudinary API calls
  */
@@ -252,7 +280,10 @@ export default {
   uploadCarousel,
   uploadGallery,
   uploadDocument,
+  uploadGrievance,
+  bunnyGrievanceStorage,
   uploadToBunny,
   deleteFromBunny,
   cloudinary,
 };
+
